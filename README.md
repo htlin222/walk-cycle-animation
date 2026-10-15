@@ -10,6 +10,8 @@
 
 ▶ **Video:** [`assets/walk-cycle-9-clips.mp4`](assets/walk-cycle-9-clips.mp4): 9 parameter combinations × 3 s, 1440×1080, 30 fps.
 
+▶ **Crowd:** [`crowd/`](crowd/) renders 140 different people walking together with the neutral gait. Start offsets are within ±100 ms, the camera follows the crowd, and the foreground is out of focus (1920×1080, 30 fps, 20 s).
+
 ---
 
 ## What makes it move like a person

@@ -1,3 +1,5 @@
 build/
 analysis/bvh/
 __pycache__/
+crowd/frames/
+crowd/*.mp4

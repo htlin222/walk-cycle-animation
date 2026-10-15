@@ -1,0 +1,12 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#fbfaf7}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script src="gait.js"></script>
+<script src="crowd.js"></script>
+<script>
+const cv=document.getElementById("c"); const R=makeRenderer(cv);
+let crowd=null, acc=0;
+window.setup=(w,h,seed,off,mode,n)=>{ cv.style.width=w+"px"; cv.style.height=h+"px"; R.resize(w,h,1); crowd=makeCrowd(seed,off,mode,w/h,n); acc=0;
+  const t=crowd.map(c=>c.tau); return {n:crowd.length, min:Math.min(...t), max:Math.max(...t)}; };
+window.advance=(dt)=>{ acc+=dt; while(acc>=HSTEP-1e-9){ acc-=HSTEP; for(const w of crowd) stepWalker(w,HSTEP);} };
+window.drawNow=()=>{ R.draw(crowd, camOf(crowd)); };
+</script></body></html>
