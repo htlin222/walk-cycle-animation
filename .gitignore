@@ -1,0 +1,3 @@
+build/
+analysis/bvh/
+__pycache__/
