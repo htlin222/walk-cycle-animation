@@ -6,4 +6,9 @@
     <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/og-image.png</image:loc></image:image>
     <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/screenshot.png</image:loc></image:image>
   </url>
+  <url>
+    <loc>https://htlin222.github.io/walk-cycle-animation/run/</loc>
+    <lastmod>2026-10-16</lastmod>
+    <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/run-og.png</image:loc></image:image>
+  </url>
 </urlset>

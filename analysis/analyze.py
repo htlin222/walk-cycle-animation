@@ -12,7 +12,7 @@ from numpy import degrees as deg
 def smooth(x,w):
     k=np.ones(w)/w; pad=w//2
     xp=np.pad(x,((pad,pad),)+((0,0),)*(x.ndim-1),mode='edge'); return np.array([np.convolve(xp[:,i] if x.ndim>1 else xp,k,'valid') for i in range(x.shape[1])]).T if x.ndim>1 else np.convolve(xp,k,'valid')
-def analyze(path):
+def analyze(path, Tmin=0.7, Tmax=2.0):
     J,D,ft=parse(path); D=D[1:]  # drop T-pose frame
     P=fk(J,D); N=[j['name'] for j in J]; g=lambda n:P[:,N.index(n)]
     fps=1/ft; root=g('Hips')
@@ -44,7 +44,7 @@ def analyze(path):
     hs=sorted(set(hs)); cyc=[]
     for a,b in zip(hs[:-1],hs[1:]):
         T=(b-a)/fps
-        if 0.7<T<2.0:
+        if Tmin<T<Tmax:
             turn=abs(np.degrees(np.arctan2(fwd[b,1],fwd[b,0])-np.arctan2(fwd[a,1],fwd[a,0])))%360; turn=min(turn,360-turn)
             if turn<20 and spd[a:b].min()>0.5*np.median(spd): cyc.append((a,b))
     if not cyc: return None
