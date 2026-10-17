@@ -277,6 +277,16 @@ let simT=0, blinkAt=2.2;
 // gait amplitude A: 0 = standing still, 1 = steady walking. pre = how far the body has tipped forward over the feet.
 let A=1, pre=0, gaitState="walk", gaitT=0;
 const STAND_X=0.04, STAND_AY=0.07, STAND_H=1.07, PRE_MAX=0.04;
+// Quiet-standing sway before the first step, the same model as stand/: eyes-open postural sway of 59 healthy young adults
+// (BDS, Santos & Duarte 2016; analysis/stand_bds.py). COP spectrum (cm²/Hz, AP, bins k/60 Hz up to 2 Hz) → one sinusoid
+// per bin, seeded phases → COM through the inverted pendulum ω0²/(ω0²+ω²) → body angle about the ankles (COM / h).
+// Fades out as the gait amplitude A rises; the feet are not touched, so the no-slip travel is unchanged.
+const SWAY={df:1/60, w0:3.083, h_m:0.858, ap:[4.159,2.22,0.9239,0.4876,0.314,0.2475,0.2378,0.181,0.1774,0.1717,0.1232,0.1289,0.1231,0.08733,0.08581,0.08097,0.08813,0.09806,0.08326,0.07516,0.06741,0.05271,0.04867,0.04855,0.04709,0.04283,0.03573,0.03168,0.02991,0.02718,0.02798,0.02882,0.02544,0.02278,0.02511,0.02255,0.0202,0.02375,0.02127,0.02075,0.01899,0.01713,0.01593,0.01471,0.01469,0.01575,0.01524,0.01407,0.01474,0.01324,0.01132,0.01187,0.01323,0.0119,0.01167,0.01311,0.01195,0.01155,0.0106,0.01111,0.01175,0.008518,0.007714,0.007808,0.007707,0.006355,0.00723,0.007525,0.006847,0.005249,0.005491,0.006505,0.005787,0.005164,0.004792,0.00509,0.005092,0.004186,0.004081,0.003745,0.004153,0.003883,0.004577,0.003775,0.003416,0.002988,0.002899,0.003002,0.003134,0.00295,0.002835,0.002543,0.002308,0.002134,0.002075,0.001868,0.001783,0.001872,0.001854,0.001989,0.001794,0.001624,0.001496,0.001381,0.001514,0.001398,0.001116,0.001027,0.001012,0.001209,0.001107,0.001023,0.0008222,0.0009547,0.0009938,0.0009861,0.0008617,0.0008753,0.0007733,0.000785]};
+const swayAngle=(()=>{ let s=2016; const rnd=()=>{ s|=0; s=s+0x6D2B79F5|0; let t=Math.imul(s^s>>>15,1|s); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+  const w=[], a=[], ph=[];
+  for(let k=0;k<SWAY.ap.length;k++){ const om=TAU*(k+1)*SWAY.df, w2=SWAY.w0*SWAY.w0;
+    w.push(om); a.push(Math.sqrt(2*SWAY.ap[k]*SWAY.df)*w2/(w2+om*om)/100/SWAY.h_m); ph.push(TAU*rnd()); rnd(); }   // 2nd draw = ML phase on stand/
+  return t=>{ let v=0; for(let k=0;k<w.length;k++) v+=a[k]*Math.sin(w[k]*t+ph[k]); return v; }; })();   // radians, forward +
 const meanOf=a=>a.reduce((s,v)=>s+v,0)/a.length;
 // bilateral symmetry: midline segments (trunk, lumbar, head) must move the same on the left and right step.
 // A single recorded cycle carries slow drift that would otherwise repeat once per stride — the signature of a limp.
@@ -293,20 +303,21 @@ function solePts(i,f,a,p){   // heel & ball of the sole, relative to the travel 
   return [G.shoePt(an,pt,[-0.085,-0.07]), G.shoePt(an,pt,[0.17,-0.07])]; }
 function kin(f,t,a=A,p=pre){
   const hy=lerpN(STAND_H, hipYb(f), a), px=a*Xb(f);
+  const sw=(1-a)*swayAngle(t), A0=[STAND_X-p, STAND_AY], tip=q=>add(A0, G.rot(sub(q,A0), -sw));   // standing sway about the ankles
   const legs=[0,0.5].map((off,i)=>{ const L=legB(f+off), g=G.mod1(f+off);
-    const hip=[px+a*L.hip[0], hy+a*L.hip[1]];
+    const hip=tip([px+a*L.hip[0], hy+a*L.hip[1]]);
     const ankle=[relX(i,f,a,p), a*(hipYb(f)+L.ankle[1]) + (1-a)*STAND_AY];
     const imp = g<0.2 ? a*(g/0.018)*Math.exp(1-g/0.018) : 0;    // heel-strike impulse (alpha function)
     return {hip, ankle, pitch:a*L.pitch, knee:ik(hip, ankle, G.LT, G.LS), imp}; });
   const tiltD=a*(G.C.pelvic_tilt(f)-10.5)*D2R;
   // trunk, head and arms: recorded motion capture (scaled by the gait amplitude while starting off)
-  const a2r=(amp("thorax",f,a)+1.5 + 4*p/PRE_MAX)*D2R;          // leaning into the first step
-  const a1=a2r*0.6 + a*cur("lumbar",f)*D2R + tiltD;
+  const a2r=(amp("thorax",f,a)+1.5 + 4*p/PRE_MAX)*D2R + sw;     // leaning into the first step
+  const a1=a2r*0.6 + a*cur("lumbar",f)*D2R + tiltD + 0.4*sw;
   const breath=Math.sin(TAU*t/3.8);
-  const P0=[px, hy+0.03], P1=add(P0,U(a1),0.28), C=add(add(P1,U(a2r),0.30),U(a2r),0.004*breath);
+  const P0=tip([px, hy+0.03]), P1=add(P0,U(a1),0.28), C=add(add(P1,U(a2r),0.30),U(a2r),0.004*breath);
   const arms=[0,0.5].map(off=>{ const g=f+off, ua=amp("uarm",g,a,-3), fa=amp("farm",g,a,8);
     return { ua:ua*D2R, fl:Math.max(6,fa-ua)*D2R, shx:a*cur("shx",g), shy:a*cur("shy",g) }; });
-  return {f, legs, tiltD, lean:a2r, a1, P0, P1, C, thr:a*cur("throt",f)*D2R, head:amp("head",f,a)*D2R, arms, breath};
+  return {f, legs, tiltD, lean:a2r, a1, P0, P1, C, thr:a*cur("throt",f)*D2R, head:amp("head",f,a)*D2R+sw, arms, breath};
 }
 // combine rigid targets with spring state; step=true advances the springs by h seconds
 function compose(R, step, h){

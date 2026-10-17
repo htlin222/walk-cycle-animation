@@ -48,15 +48,21 @@ for sp, name in NAMES.items():
     k_arm = np.ptp(thigh(sp)) / cmu_thigh_rom
     ua = four(C['uarm']); fa = four(C['farm']); um = ua.mean()
     ua_s = um + k_arm * (ua - um)
+    # The recorded fore-aft shoulder motion is almost entirely trunk twist seen from the side (shx ≈ k·sin(throt),
+    # R² = 1.00, k ≈ half shoulder width). The page already moves the shoulders with the twist, so keep only the
+    # residual (the shoulder girdle itself); otherwise the twist is applied twice and the far shoulder juts out the back.
+    throt = four(C['throt'] - C['throt'].mean()); shx = four(C['sh_x'] - C['sh_x'].mean()); tw = np.sin(np.radians(throt))
+    k_tw = (tw @ shx) / (tw @ tw)
     up = dict(lumbar=four(C['lumbar'] - C['lumbar'].mean()), thorax=four(C['thorax']), head=four(C['head'] - C['head'].mean()),
               uarm=ua_s, farm=ua_s + (fa - ua),                                   # keep the recorded elbow angle
-              shx=four(C['sh_x'] - C['sh_x'].mean()), shy=four(C['sh_y'] - C['sh_y'].mean()),
-              throt=four(C['throt'] - C['throt'].mean()))
+              shx=shx - k_tw * tw, shy=four(C['sh_y'] - C['sh_y'].mean()),
+              throt=throt)
     legs = {k: n[k][:100] for k in ('hip_flexion', 'knee_flexion', 'ankle_dorsiflexion', 'pelvic_tilt', 'pelvic_rotation', 'pelvic_obliquity', 'pelvis_height', 'grf_ap')}
     out[name] = dict(speed=n['speed'], stance=round(n['stance'], 4), stride=round(n['stride'], 3), cad=round(n['cadence'], 1), stride_time=round(n['stride_time'], 4), leg_m=round(n['leg_m'], 4),
                      contact=round(n['contact_time'], 3), vo=round(n['vertical_oscillation'], 4), vo_m=round(n['vertical_oscillation_m'], 4),
                      runners=n['runners'], foot_strike=n['foot_strike'], arm_scale=round(float(k_arm), 3),
                      legs=legs, curves={k: [round(float(x), 3) for x in v] for k, v in up.items()})
-    print(f"{name}: {n['speed']} m/s  stance {n['stance']*100:.1f}%  stride {n['stride']:.2f} L  {n['cadence']:.0f} spm  arm scale {k_arm:.2f}")
+    print(f"{name}: {n['speed']} m/s  stance {n['stance']*100:.1f}%  stride {n['stride']:.2f} L  {n['cadence']:.0f} spm  arm scale {k_arm:.2f}  "
+          f"shoulder fore-aft {np.ptp(shx):.3f} L -> {np.ptp(up['shx']):.3f} L without trunk twist (lever {k_tw:.3f} L)")
 json.dump(out, open(D / 'run_styles.json', 'w'))
 print('upper-body mean trunk lean %.1f°, elbow %.0f°' % (C['thorax'].mean(), (C['farm'] - C['uarm']).mean()))
