@@ -11,4 +11,27 @@
     <lastmod>2026-10-16</lastmod>
     <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/run-og.png</image:loc></image:image>
   </url>
+  <url>
+    <loc>https://htlin222.github.io/walk-cycle-animation/stand/</loc>
+    <lastmod>2026-10-17</lastmod>
+  </url>
+  <url>
+    <loc>https://htlin222.github.io/walk-cycle-animation/stairs/</loc>
+    <lastmod>2026-10-17</lastmod>
+    <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/stairs-og.png</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://htlin222.github.io/walk-cycle-animation/jump/</loc>
+    <lastmod>2026-10-17</lastmod>
+    <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/jump-og.png</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://htlin222.github.io/walk-cycle-animation/dance/</loc>
+    <lastmod>2026-10-17</lastmod>
+    <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/dance-og.png</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://htlin222.github.io/walk-cycle-animation/pitch/</loc>
+    <lastmod>2026-10-17</lastmod>
+  </url>
 </urlset>
