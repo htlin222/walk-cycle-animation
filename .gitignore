@@ -4,3 +4,4 @@ __pycache__/
 crowd/frames/
 crowd/*.mp4
 analysis/rbds/
+analysis/camargo/
