@@ -5,6 +5,8 @@
   floor   – deepest any sole point goes below the mound surface
   events  – the page's clock reaches each event at the measured time (ms from release), the phase chip and readout agree
   ball    – in the hand until release, then leaves at the measured speed without jumping
+  seams   – the drawn pose is continuous where the set hold (with its breath) meets the leg lift and across the loop
+  hair    – the hair spring restarts at rest when the reset swaps the finish for the set pose (no swing at the loop seam)
 Usage: python check_pitch.py     (CHROMIUM=/path/to/chrome to use a local build)
 """
 import os, json, pathlib, sys
@@ -33,6 +35,14 @@ JS = """()=>{ setPlay(false);
   const tb=tauOf('BR'), a=ballAt(tb-1e-6), c=ballAt(tb+1e-6), d=ballAt(tb+0.005), e=ballAt(tb+0.006);
   res.ball={held_before:!a.free, free_after:c.free, jump_mm:Math.hypot(...sub3(c.pos,a.pos))*mm,
     speed_ms:Math.hypot(...sub3(e.pos,d.pos))/0.001*HM, gone_after_flight:ballAt(tb+D.ball.flight_s+0.01)===null};
+  // seams: the set hold (with its breath) into the leg lift, and the end of the loop (set pose shown) into its start
+  const jump=(A,B)=>Math.max(...Object.keys(D.pos).map(k=>len3(sub3(A[k],B[k]))))*mm;
+  res.seam_set_mm=jump(poseAt(SET-1e-6),poseAt(SET)); res.seam_loop_mm=jump(poseAt(shownTau(CYCLE-1e-6)),poseAt(0));
+  // hair: from the swap through the whole set hold, how far the spring sits from the tuft it follows
+  const tuft=Q=>add3(add3(Q.head,Q.head_up,-0.025),norm3(add3(Q.head_up,Q.head_front,0.35)),0.062*0.95);
+  seek(SET+DATA); accum=0; res.hair_after_swap_mm=0;
+  for(let i=0;i<Math.round((CYCLE-DATA)/0.005);i++){ advance(0.005);
+    if(tau>=SWAP || tau<SET) res.hair_after_swap_mm=Math.max(res.hair_after_swap_mm, len3(sub3(SPR.hair.x,tuft(poseAt(shownTau(tau)))))*mm); }
   // the clock: one loop of advance() returns to the same instant
   seek(0.5); accum=0; const t0=tau; advance(CYCLE);
   res.loop_err_ms=Math.abs(((tau+accum-t0+CYCLE/2)%CYCLE+CYCLE)%CYCLE-CYCLE/2)*1000;   // accum: time not stepped yet
@@ -66,6 +76,8 @@ bl = r['ball']
 ok(bl['held_before'] and bl['free_after'] and bl['jump_mm'] < 1, f"ball held until release, leaves without a jump ({bl['jump_mm']:.2f} mm)")
 ok(abs(bl['speed_ms'] / DATA['ball']['speed_ms'] - 1) < 0.005, f"ball speed after release {bl['speed_ms']:.2f} m/s (measured {DATA['ball']['speed_ms']} m/s)")
 ok(bl['gone_after_flight'], 'ball removed after reaching the plate')
+ok(r['seam_set_mm'] < 0.1 and r['seam_loop_mm'] < 0.1, f"no jump where the set hold ends ({r['seam_set_mm']:.3f} mm) or across the loop ({r['seam_loop_mm']:.3f} mm)")
+ok(r['hair_after_swap_mm'] < 5, f"hair spring at rest through the reset swap and the set hold: lags at most {r['hair_after_swap_mm']:.2f} mm")
 ok(r['loop_err_ms'] < 1, f"one loop of the clock returns to the same instant (error {r['loop_err_ms']:.3f} ms)")
 ok(not errs, f'page errors {errs}')
 sys.exit(1 if fails else 0)
