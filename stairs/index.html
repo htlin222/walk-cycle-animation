@@ -15,7 +15,7 @@
 <meta property="og:image" content="https://htlin222.github.io/walk-cycle-animation/assets/stairs-og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="A flat-style character climbing an endless staircase, one foot on each tread.">
+<meta property="og:image:alt" content="A flat-style character climbing a flight of stairs on a terrain course with a curb, landing and second flight.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://htlin222.github.io/walk-cycle-animation/assets/stairs-og.png">
 <meta name="twitter:title" content="Stairs and Ramps Study">
@@ -200,7 +200,7 @@ function buildStair(R){
     if(v[0]>0.15 && th>0){
       const b=rot(BALL,pitch), bh=A[1]+b[1]-fy;
       const kStance=Math.min(1,Math.max(0,1-bh/0.06));
-      const q0=Math.min(1,Math.max(-1,(bh-0.004)/0.085)), need=Math.max(0, th-Math.asin(q0));
+      const q0=Math.min(1,Math.max(-1,(bh/Math.hypot(1,k)-0.004)/0.085)), need=Math.max(0, th-Math.asin(q0));   // height above the slope, not the level
       const ang=Math.min(th, Math.max(th*kStance, need));
       const rel=[q[0]-b[0],q[1]-b[1]], r2=rot(rel, ang*Math.min(1,(v[0]-0.15)/0.03)); q=[b[0]+r2[0],b[1]+r2[1]]; }
     return [A[0]+q[0],A[1]+q[1]]; }
@@ -210,7 +210,7 @@ function buildStair(R){
   for(let it=0;it<5;it++){
     const req=new Float64Array(M), pen=new Float64Array(M);
     for(let i=iTO;i<M;i++){ const g=F(i), c=fk(g), A=[bodyX(g)+c.ankle[0]+DX[i], AYw(i)+c.ankle[1]+DY[i]+LIFT[i]], gap=soleGap(A,c.pitch);
-      req[i]=LIFT[i]+Math.max(0,0.02-gap)*ssx((1-g)/0.04); pen[i]=LIFT[i]+Math.max(0,0.003-gap)*ssx((1-g)/0.04); }
+      req[i]=LIFT[i]+Math.max(0,0.02-gap)*ssx((1-g)/0.04)*ssx((g-ST)/0.06); pen[i]=LIFT[i]+Math.max(0,0.003-gap)*ssx((1-g)/0.04); }
     const sm=new Float64Array(M);
     for(let i=0;i<M;i++){ let m=0; for(let j=0;j<=3*Rk;j++) m=Math.max(m,req[((i-j)%M+M)%M]); sm[i]=m; }
     for(let i=0;i<M;i++){ let s=0,ws=0; for(let j=0;j<=3*Rk;j++){ const w=Math.exp(-j*j/(2*Rk*Rk)); s+=w*sm[((i-j)%M+M)%M]; ws+=w; }
@@ -476,7 +476,7 @@ function buildCourse(spec, opt={}){
     return {starts, ends, P};
   }
   // ---- iterate: speed → footholds → terrain (and approach-step fitting) ----
-  const dSdh=0.45, NIT=9;     // ≈ step change per unit hip-excursion gain at one contact (leg lengths); passes
+  const dSdh=0.45, NIT=9, XG=opt.xg||1.7;     // ≈ step change per unit hip-excursion gain at one contact (leg lengths); passes
   let fit=null;
   for(let it=0;it<NIT;it++){
     horizontal();
@@ -496,7 +496,7 @@ function buildCourse(spec, opt={}){
       // crossing step: trailing ball → bar → leading heel as measured; next step: leading heel → trailing heel as measured
       const kL=kb+1, kT=kb+2, wantL=OB.trail_ball_before+OB.thickness+OB.lead_heel_after, wantT=OB.trail_heel_after-OB.lead_heel_after;
       const eL=wantL-(G.P(kL).heel-G.P(kb).ball), eT=wantT-(G.P(kT).heel-G.P(kL).heel);
-      if(it<NIT-1){ const fL=at(kL), fT=at(kT); fL.gain=Math.min(1.45,Math.max(0.75,fL.gain+0.8*eL/dSdh)); fT.gain=Math.min(1.45,Math.max(0.75,fT.gain+0.8*eT/dSdh)); }
+      if(it<NIT-1){ const fL=at(kL), fT=at(kT); fL.gain=Math.min(XG,Math.max(0.75,fL.gain+0.8*eL/dSdh)); fT.gain=Math.min(1.45,Math.max(opt.tmin||0.75,fT.gain+0.8*eT/dSdh)); }
       hu.errL=eL; hu.errT=eT; hu.before=hu.x0-G.P(kb).ball; hu.after=G.P(kL).heel-hu.x1; hu.trailAfter=G.P(kT).heel-hu.x1; }
     fit={gapErr:errs};
   }
@@ -506,6 +506,18 @@ function buildCourse(spec, opt={}){
       ys+=w*(terrNoH(X[j]+p.x)-p.y); ws+=w; }
     Y[j]=ws>0?ys/ws:Y[j-1]; }
   Y[NS]=Y[0]+HL;
+  // a step onto or off a curb or the first stair hands the weight over in a short double support, and the two legs'
+  // postures imply heights a riser apart: taken as is, the body would jump up (or drop) by a riser in ~50 ms. Never
+  // above what the legs give, the body rises and falls no faster than VY (0.6 L/s ≈ 0.5 m/s, a brisk stair climb):
+  // a rise is spread over the following single support, a drop starts earlier on the trailing leg. Ordinary walking
+  // and steady flights (≈ 0.3 L/s) are left as they are. Three lap copies keep the result periodic.
+  { const VM=0.6*dt, n=NS, E=new Float64Array(3*n+1);
+    for(let j=0;j<=3*n;j++){ const q=Math.floor(j/n), r=j-q*n; E[j]=Y[r]+(q-1)*HL; }
+    for(let j=1;j<=3*n;j++) E[j]=Math.min(E[j],E[j-1]+VM);
+    for(let j=3*n-1;j>=0;j--) E[j]=Math.min(E[j],E[j+1]+VM);
+    const w=Math.round(0.03/dt), K=[]; let ks=0; for(let s=-3*w;s<=3*w;s++){ const v=Math.exp(-s*s/(2*w*w)); K.push(v); ks+=v; }
+    for(let j=0;j<n;j++){ let s=0; for(let q=-3*w;q<=3*w;q++) s+=K[q+3*w]*E[n+j+q]; Y[j]=s/ks; }
+    Y[NS]=Y[0]+HL; }
   // ---- per-leg corrections: stance holds the pivot still with the lowest sole point on the surface; swing carries them ----
   const SOLE=[]; for(let j=0;j<=34;j++) SOLE.push([-0.085+0.34*j/34,-0.07]); SOLE.push([0.262,-0.06]);
   const SH=gait("stair_ascent_6").shoePt;
@@ -527,7 +539,6 @@ function buildCourse(spec, opt={}){
   const Yat=τ=>{ const q=Math.floor(τ/TL), r=τ-q*TL, u=r/dt, j=Math.min(NS-1,Math.floor(u)), f=u-j; return Y[j]+(Y[j+1]-Y[j])*f+q*HL; };
   const vxAt=τ=>(Xat(τ+1e-3)-Xat(τ-1e-3))/2e-3;
   const CORR=[0,1].map(()=>({DX:new Float64Array(NS), DY:new Float64Array(NS), L:new Float64Array(NS)}));
-  const jOf=τ=>{ const r=((τ%TL)+TL)%TL; return Math.min(NS-1,Math.round(r/dt)); };
   for(let k=0;k<N;k++){ const i=k%2, a=tt(k), o=toffK(k), m=(a+o)/2, C=CORR[i];
     // stance: integrate the pivot's world velocity away from mid-stance
     const ja=Math.ceil(a/dt), jo=Math.floor(o/dt), jm=Math.round(m/dt);
@@ -555,7 +566,7 @@ function buildCourse(spec, opt={}){
           D2[j]=an-r.x[c];                         // the old contact point is held through this step,
           if(cn!==c){ an=r.x[cn]+D2[j]; c=cn; } } }    // then the new one from where it is now
       DXs=D2; solveY(); }
-    for(let j=ja;j<=jo;j++){ const jj=jOf(j*dt); C.DX[jj]=DXs[j]; C.DY[jj]=DYs[j]; }
+    for(let j=ja;j<=jo;j++){ const jj=((j%NS)+NS)%NS; C.DX[jj]=DXs[j]; C.DY[jj]=DYs[j]; }   // integer wrap: τ = NS·dt can round below TL
     at(k).ja=ja; at(k).jo=jo;
   }
   for(let k=0;k<N;k++){ const i=k%2, C=CORR[i], o=toffK(k), b=tt(k+2), jo=at(k).jo, jb=Math.ceil(b/dt)+0;
@@ -586,7 +597,7 @@ function buildCourse(spec, opt={}){
       const Rk=5, sm=new Float64Array(n);
       for(let q=1;q<n;q++){ let mx=0; for(let s=-2*Rk;s<=3*Rk;s++) if(q-s>=1&&q-s<n) mx=Math.max(mx,req[q-s]); sm[q]=mx; }
       for(let q=1;q<n;q++){ let s1=0, ws=0; for(let s=-3*Rk;s<=3*Rk;s++){ const w=Math.exp(-s*s/(2*Rk*Rk)); s1+=w*(q-s>=1&&q-s<n?sm[q-s]:0); ws+=w; }
-        const jj=((jo+q)%NS+NS)%NS, v=Math.max(C.L[jj], s1/ws, pen[q]); if(v>C.L[jj]+1e-6) moved=1; C.L[jj]=v; } }
+        const jj=((jo+q)%NS+NS)%NS, v=Math.max(C.L[jj], s1/ws*ss(q/n/0.15), pen[q]); if(v>C.L[jj]+1e-6) moved=1; C.L[jj]=v; } }
     for(let q=1;q<n;q++){ const jj=((jo+q)%NS+NS)%NS; C.L[jj]*=ss((1-q/n)/0.06); }
     // the set-down taper (last 20 % of the swing) must not put the sole into the ground: where it would, lift just
     // enough (samples and the half-way points the page draws), spread over a few samples
@@ -953,7 +964,7 @@ function drawTerrain(){
       const n=4, sh=2*b/n;                                                             // bar, along the depth
       for(let i=0;i<n;i++){ ctx.fillStyle=i%2?"#ffffff":"#ff5a36"; ctx.fillRect(xm-w/2,y1-b+i*sh,w,sh+0.5); }
       ctx.strokeStyle="rgba(31,34,51,.35)"; ctx.lineWidth=1; ctx.strokeRect(xm-w/2,y1-b,w,2*b);
-      seg(ctx,[[xm,y1+b],[xm,y0+b]],2.5,post,"butt"); base(y0+b); }                  // near post
+    }                                                                                 // near post: drawHurdlesNear()
   } else if(G.RAMP){
     const xa=-cx/S-1, xbR=(W-cx)/S+1, ya=terrRel(xa), yb=terrRel(xbR);
     ctx.fillStyle=side; ctx.beginPath(); ctx.moveTo(SX(xa),SY(ya)+b); ctx.lineTo(SX(xbR),SY(yb)+b); ctx.lineTo(SX(xbR),H+10); ctx.lineTo(SX(xa),H+10); ctx.fill();
@@ -974,15 +985,36 @@ function drawTerrain(){
       seg(ctx,[[xr,Math.min(ys,yn)-b],[xr,Math.max(ys,yn)-b]],1,far,"butt");
     }
   }
-  // footprints: where each foot was planted, fading over ~3 s
+  // footprints: where each foot was planted, fading over ~3 s; only on the visible tops (a heel or toe over a nosing
+  // leaves no print in the air)
+  ctx.save(); topClip();
   for(let i=prints.length-1;i>=0;i--){ const p=prints[i], age=simT-p.t;
     if(age>3.2){ prints.splice(i,1); continue; }
-    const x=SX(p.x-t), y=SY(p.y-l)+S*(p.near?0.022:-0.004), a=0.11*(1-age/3.2)*(p.near?1:0.6);
+    const k=p.k||0, x=SX(p.x-t), y=SY(p.y-l-0.085*k)+S*(p.near?0.022:-0.004), a=0.11*(1-age/3.2)*(p.near?1:0.6);
     ctx.fillStyle=`rgba(31,34,51,${a.toFixed(3)})`;
-    ctx.beginPath(); ctx.ellipse(x+S*0.085,y,S*0.17,S*0.016,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x+S*0.085,y,S*0.17,S*0.016,-Math.atan(k),0,Math.PI*2); ctx.fill();   // along the slope
   }
   ctx.restore();
+  ctx.restore();
 }
+// the near post of each hurdle stands between the camera and the walker: drawn after the figure, so a foot passing
+// low beside the bar goes behind it (the far post and the bar's top are drawn with the terrain, behind the figure)
+function drawHurdlesNear(){ if(!CRS) return;
+  ctx.save(); ctx.setTransform(dpr,0,0,dpr,0,0); const b=S*BAND, post="#5b6075", foot=S*0.07;
+  for(const h of cHurdles(-cx/S-1,(W-cx)/S+1)){ const xm=SX((h.x0+h.x1)/2), y0=SY(h.y), y1=SY(h.y+h.h);
+    seg(ctx,[[xm,y1+b],[xm,y0+b]],2.5,post,"butt"); seg(ctx,[[xm-foot,y0+b],[xm+foot,y0+b]],2.5,post,"round"); }
+  ctx.restore(); }
+// clip to the visible top of the walking surface (tread tops, the ramp, the course's ground band), CSS-px transform
+function topClip(){
+  const b=S*BAND, t=travel(), l=lift(); ctx.beginPath();
+  if(CRS){ const sp=cProf(-cx/S-1,(W-cx)/S+1).map(p=>[SX(p[0]),SY(p[1])]);
+    sp.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]-b):ctx.moveTo(p[0],p[1]-b));
+    for(let i=sp.length-1;i>=0;i--) ctx.lineTo(sp[i][0],sp[i][1]+b); ctx.closePath(); }
+  else if(G.RAMP){ const xa=-cx/S-1, xbR=(W-cx)/S+1, ya=terrRel(xa), yb=terrRel(xbR);
+    ctx.moveTo(SX(xa),SY(ya)-b); ctx.lineTo(SX(xbR),SY(yb)-b); ctx.lineTo(SX(xbR),SY(yb)+b); ctx.lineTo(SX(xa),SY(ya)+b); ctx.closePath(); }
+  else { const [k0,k1]=stairRange();
+    for(let k=k0;k<=k1;k++){ const x0=G.xb+k*G.tread-t, y=G.UP*G.riser*k-l; ctx.rect(SX(x0),SY(y)-b,S*G.tread,2*b); } }
+  ctx.clip(); }
 
 function shoeLow(L){ let m=9;   // lowest sole point above the surface under it
   for(const v of [[-0.085,-0.07],[0.17,-0.07],[0.255,-0.07]]){ const p=G.shoePt(L.ankle,L.pitch,v,L.fy,L.k??G.K); m=Math.min(m,p[1]-terrRel(p[0])); } return Math.max(0,m); }
@@ -1034,13 +1066,14 @@ function shadowLayer(Q,k,c0){
   slx.globalAlpha=0.16; slx.drawImage(mk,0,0); slx.globalAlpha=1;
 }
 function drawContact(Q){
-  ctx.save(); ctx.setTransform(dpr,0,0,dpr,0,0);
-  // per-foot contact shadow on the surface under the ball: tight & dark when planted, soft & faint as the foot lifts
+  ctx.save(); ctx.setTransform(dpr,0,0,dpr,0,0); topClip();
+  // per-foot contact shadow on the surface under the ball: tight & dark when planted, soft & faint as the foot lifts;
+  // along the slope, and only on the visible tops (none spilling over a nosing or onto a riser)
   for(const L of Q.legs){
     const h=shoeLow(L), r=G.rot([0.09,0],L.pitch), x=L.ankle[0]+r[0];
     const a=0.30*Math.exp(-h/0.05), w=S*(0.2+h*1.4)*(1+0.25*EX*L.imp), hh=S*(0.022+h*0.25);
     const g=ctx.createRadialGradient(0,0,0,0,0,1); g.addColorStop(0,`rgba(30,28,48,${a.toFixed(3)})`); g.addColorStop(1,"rgba(30,28,48,0)");
-    ctx.save(); ctx.translate(SX(x),SY(terrRel(x))+S*0.004); ctx.scale(w,hh); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,1,0,Math.PI*2); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.translate(SX(x),SY(terrRel(x))+S*0.004); ctx.rotate(-Math.atan(L.k??G.K)); ctx.scale(w,hh); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,1,0,Math.PI*2); ctx.fill(); ctx.restore();
   }
   ctx.restore();
 }
@@ -1093,12 +1126,12 @@ function advance(dt){   // fixed-step simulation: phase, progression and springs
     const cad=1+0.015*(0.6*Math.sin(TAU*simT/7.3)+0.4*Math.sin(TAU*simT/3.1+1));   // stride-to-stride variability
     if(CRS){ const d=HSTEP*cad; phase+=d; breathT+=HSTEP/3.8;                       // course: time runs at the measured pace
       for(const i of [0,1]){ const L=CRS.T.leg[i]; if(cN(L.st,phase)&&!cN(L.st,phase-d)){ const q=legAt(i,phase+0.05);
-        prints.push({x:travel()+q.A[0], y:lift()+q.fy, t:simT, near:i===0}); } }
+        prints.push({x:travel()+q.A[0], y:lift()+q.fy, k:q.k, t:simT, near:i===0}); } }
       compose(kin(phase), true, HSTEP); if(simT>blinkAt+0.2) blinkAt=simT+2+Math.random()*3.5; continue; }
     const d=HSTEP*cad*D.cad/120; phase=G.mod1(phase+d); cyc+=d;                   // cadence in steps/min → strides/s
     breathT+=HSTEP/3.8;
     for(const [i,off] of [[0,0],[1,0.5]]){ const g=G.mod1(phase+off), gp=G.mod1(phase+off-d);
-      if(gp<0.12 && g>=0.12){ const L=legAt(i,phase); prints.push({x:travel()+L.A[0], y:lift()+L.fy, t:simT, near:i===0}); } }
+      if(gp<0.12 && g>=0.12){ const L=legAt(i,phase); prints.push({x:travel()+L.A[0], y:lift()+L.fy, k:L.k, t:simT, near:i===0}); } }
     compose(kin(phase), true, HSTEP);
     if(simT>blinkAt+0.2) blinkAt=simT+2+Math.random()*3.5;
   } }
@@ -1163,6 +1196,7 @@ function frame(now){
   drawTerrain(); drawShadow(Q); drawContact(Q);
   ctx.setTransform(dpr*S,0,0,-dpr*S,dpr*cx,dpr*gyA);
   drawFigure(ctx,Q,PAL);
+  drawHurdlesNear();
   if(skel.checked) drawSkeleton(Q);
   if(fade>0){ ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle=`rgba(255,255,255,${fade.toFixed(3)})`; ctx.fillRect(0,0,cv.width,cv.height); }
   updateUI();

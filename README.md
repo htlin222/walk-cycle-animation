@@ -135,7 +135,7 @@ Controls: playback speed, condition (four buttons above), sway magnification 實
 
 ## Stairs and ramps
 
-[![Animated stair climb and descent, 6-inch steps](assets/stairs-cycle.gif)](https://htlin222.github.io/walk-cycle-animation/stairs/)
+[![Animated terrain course: up a flight of stairs, over the landing, down again and over a hurdle](assets/stairs-cycle.gif)](https://htlin222.github.io/walk-cycle-animation/stairs/)
 
 `stairs/index.html` uses the walk page's body, drawing, springs and shadows. The cycle underneath is rebuilt from stair and ramp data, and the staircase never ends.
 
@@ -178,11 +178,11 @@ Steeper climbs need more hip and knee flexion and a longer stance; steeper desce
 - **Contact on terrain.** The pivot is whichever of heel or ball is closer to the surface under it, not the lower of the two. Going up, the heel hangs over the nosing, so the ball carries the weight. Going down, the toes reach the nosing and the ball lands first. Body height is solved from "the pivot is on its tread or on the ramp". Stairs add one riser per step and ramps add stride × tan(incline), so the repeating part of the height stays periodic and the staircase can loop forever.
 - **Stance foot exactly on the surface.** After the no-slip solve, each stance sample is shifted so that the lowest of 36 points along the sole touches the tread or ramp. The foot may rest on the nosing edge itself.
 - **Treads from the data.** Tread depth = drawn stride / 2. The treads are placed so the ball of the drawn foot at mid-stance stands where the subjects' did, as a fraction of the tread (33–36 % of the way across going up, 76–82 % going down). Copying heel or toe distances in centimetres would not fit, because the drawn shoe is longer than the subjects'. Stride is fitted as on the walk page, by scaling hip excursion (×0.94 to ×1.03). Going downstairs, stride depends on the knee and ankle rather than the hip, so it is left as drawn, 4–5 % longer than measured.
-- **Swing clearance against the stairs.** The swinging sole is lifted wherever it would come within 2 % of leg length of a tread, nosing or ramp, never back into stance, and fades out so the foot sets down without a jump.
+- **Swing clearance against the stairs.** The swinging sole is lifted wherever it would come within 2 % of leg length of a tread, nosing or ramp, never back into stance. The lift fades in after foot off and out before contact, so the foot leaves and sets down without a jump. The toe box bends at the ball to keep its tip off the surface while the ball is low; on a ramp that height is measured from the slope, not the level.
 - **Foot contact from markers.** The dataset's gait-event files come from heavily smoothed heel-marker speed. They mark the foot down later than the markers show it landing: by a median of 55 ms going upstairs and 130 ms going downstairs, where the toes land first. Foot off is marked 30–75 ms early. Here, contact and foot off are taken as the moments the heel or toe marker comes within 10 mm of its resting height. Stance is therefore 64–69 % on stairs, against roughly 57 % up and 50 % down with the files' events.
 - **Steady state only.** A cycle counts when both feet, from the step before it to the step after it, are on the stairs or ramp (neither on the floor nor on the landing) and every label over it is the mode or its transitions. A 5-step staircase gives two such cycles per pass.
 - **Pelvis frame.** OpenSim reports pelvis tilt and list about the lab axes, and the subjects walk along the lab's z axis, so its "tilt" is really obliquity there. The rotations are re-expressed in the walking direction. The thigh angle is hip flexion − anterior pelvic tilt, and this convention fits the measured pelvis height better in the 4 subjects tested (rms 4.5–5.2 mm, against 5.6–7.9 mm for the opposite sign). The ankle is zeroed so that the foot is flat in quiet standing at the start of each trial (median offset 4.3°).
-- **Checks.** [`analysis/check_stairs.py`](analysis/check_stairs.py) runs all 20 conditions in headless Chromium. While the same sole point stays in contact, it moves at most 0.0003 leg lengths (0.25 mm; under 0.0001 on stairs). The lowest sole point in stance stays within 0.0002 leg lengths of the surface. No sole point goes more than 0.0003 leg lengths (0.25 mm) into a tread, nosing, riser or ramp at any time. The swinging sole clears the stairs by at least 0.005 leg lengths (4 mm) and the ramp by at least 0.0009 (0.8 mm).
+- **Checks.** [`analysis/check_stairs.py`](analysis/check_stairs.py) runs all 20 conditions in headless Chromium. While the same sole point stays in contact, it moves at most 0.0003 leg lengths (0.25 mm; under 0.0001 on stairs). The lowest sole point in stance stays within 0.0002 leg lengths of the surface. No sole point goes more than 0.0003 leg lengths (0.25 mm) into a tread, nosing, riser or ramp at any time. The swinging sole clears the stairs by at least 0.0024 leg lengths (2 mm) and the ramp by at least 0.0018 (1.5 mm). Neither ankle's velocity changes by more than 0.012 leg lengths from one 240 Hz frame to the next (the toe-off lift on steep ramps used to jump 4–6 cm in a few milliseconds; fixed), and no knee bends backwards.
 
 Controls: playback speed, 上樓 up stairs / 下樓 down stairs / 上坡 up ramp / 下坡 down ramp / 地形 Course, step height 4–7″, incline 5.2–18° or course preset (樓梯 / 坡道 / 障礙 / 綜合 / 隨機; switching fades through white), exaggeration, skeleton overlay with the ankle path over the current stride. The phase chips show Contact → Mid-stance → Toe-off → Swing.
 
@@ -201,19 +201,21 @@ The 地形 Course mode walks without stopping through a course that loops seamle
 How the course is built:
 
 - **Footholds first.** The course is a list of alternating footholds, each tagged with the terrain it lands on. For each feature, the number of level steps before it is chosen from the designed gap (in metres) and corrected by a trial solve. The total is kept even, so the same foot starts every lap.
-- **Which foot leads.** Feet strictly alternate, so which foot meets the first riser follows from the step count. The approach is planned in steps, not distance: the step count and three per-step stride adjustments before each feature (hip excursion scaled ×0.70–1.45, set at each contact and blended across the cycle) put the foot whose measured swing is "floor → first step" exactly on the first riser. That swing is what the data was recorded for. The stairs are then placed by least squares so that every foot on the flight stands where the subjects' did on the tread, as a fraction of it.
+- **Which foot leads.** Feet strictly alternate, so which foot meets the first riser follows from the step count. The approach is planned in steps, not distance: the step count and three per-step stride adjustments before each feature (hip excursion scaled ×0.70–1.45, up to ×1.7 for the step over a hurdle, set at each contact and blended across the cycle) put the foot whose measured swing is "floor → first step" exactly on the first riser. That swing is what the data was recorded for. The stairs are then placed by least squares so that every foot on the flight stands where the subjects' did on the tread, as a fraction of it.
 - **Then the solver of the stairs page, along a whole lap.** Speed comes from "the loaded foot does not move", body height from the loaded heel or ball on the surface, and each stance sample is placed so the sole touches the ground. Within a stance, the sole point in contact is held still. When contact passes to another point (heel → ball → bent toe), that point is held from where it is, so the foot rolls without sliding. The swing carries the corrections from foot-off to the next contact. It is lifted wherever the sole would come within 2 % of leg length of a step, curb, nosing or ramp, including ahead of a riser and at the half-way points the page draws between samples.
+- **No jolt at a curb.** Stepping onto or off a curb or the first stair, the weight passes between feet a riser apart in a short double support, and the body would jump a riser in about 50 ms. The body height is kept at or below what the legs give and changes no faster than 0.6 leg lengths/s (≈ 0.5 m/s, a brisk stair climb): the rise is spread over the next single support and a drop starts earlier on the trailing leg. Level walking and steady flights are slower than that and are unchanged.
 - **Hurdle clearance exactly as modelled.** For each crossing, the swing is adjusted vertically, up or down, with a narrow smooth correction at the closest pass, until the sole's lowest point over the bar equals the modelled clearance. The crossing step is split around the bar in Chardon's proportions.
 - **Seamless loop.** The lap is solved as one periodic problem: timeline, body path and both legs repeat with an offset of one lap length (and the lap's height change, which the presets keep at zero). Nothing is blended across the seam.
 
 Checks: [`analysis/check_course.py`](analysis/check_course.py) plays the four presets and three random seeds for a full lap at 240 Hz. Results:
 
 - While the same sole point stays in contact, it moves at most 0.0003 leg lengths (0.25 mm).
-- The lowest sole point in stance stays within 0.0007 leg lengths of the ground.
+- The lowest sole point in stance stays within 0.0006 leg lengths of the ground.
 - No sole point goes more than 0.0001 leg lengths into the ground, a step, a curb or a hurdle.
-- The swinging sole clears the terrain by at least 0.002 leg lengths.
-- Played back at 1/1920 s with sole points every millimetre, every hurdle crossing's clearance is within 0.0007 leg lengths (0.6 mm) of the model.
+- The swinging sole clears the terrain by at least 0.0013 leg lengths (1 mm, just after foot off).
+- Played back at 1/1920 s with sole points every millimetre, every hurdle crossing's clearance is within 0.0008 leg lengths (0.7 mm) of the model. The crossing step (trailing ball → bar → leading heel) is at least 87 % of the measured one.
 - Across the lap seam, the frame-to-frame change of every table is at most 1.3 × the largest anywhere else in the lap.
+- Neither ankle's velocity changes by more than 0.0093 leg lengths between 240 Hz frames (before the fixes: up to 0.048, a 3–4 cm jump of the foot at every foot off and a 13 cm jump of the body onto a curb), and no knee bends backwards.
 - No page errors, and no horizontal scroll at 390 px.
 
 Course caveats:
@@ -221,7 +223,7 @@ Course caveats:
 - The floor-side transitions use measured swings with a level-walking stance, because the dataset has no walking-through transitions there.
 - The step off the last stair onto the floor has 29 cycles from 6 subjects (3 subjects on the ramp).
 - The hurdle model mixes young-adult clearance and placement with older-adult trends for height and joint angles.
-- The crossing step is shorter than measured: the trailing ball lands about 0.39 leg lengths before the bar (measured 0.49) and the leading heel about 0.23 after it (0.29). Longer steps would need more hip excursion than the stride scaling allows.
+- The crossing step is about 87 % of the measured one: the trailing ball lands about 0.43 leg lengths before the bar (measured 0.49) and the leading heel about 0.25 after it (0.29). The step after it runs 2–12 % long (trailing heel 1.06–1.16 leg lengths past the bar, measured 1.04): a longer crossing step drags the next one with it, and more hip excursion than ×1.7 starts to look forced.
 - Designed gaps before hurdles and curbs come out within about ±0.7 leg lengths (±0.6 m). On stairs and ramps they are exact.
 - Building a course takes 0.3–1 s in the browser.
 
@@ -388,7 +390,7 @@ analysis/
   stand_bds.py        BDS balance data (--download fetches BDS.zip, ≈ 375 MB) → data/normative_stand_bds.json, data/stand_page.json (embedded in stand/index.html)
   check_stand.py      feet / sway amplitude / pendulum checks of stand/index.html, and the walk's standing start vs git HEAD, in headless Chromium
   stairs_camargo.py   Camargo et al. stair and ramp data (--download reads only the needed files, ≈ 400 MB) → data/normative_stairs_camargo.json, data/stairs_page.json (embedded in stairs/index.html)
-  check_stairs.py     slip / surface / penetration / swing-clearance checks of stairs/index.html (all 20 conditions) in headless Chromium
+  check_stairs.py     slip / surface / penetration / swing-clearance / foot-pop / knee checks of stairs/index.html (all 20 conditions) in headless Chromium
   render_stairs.py    → assets/stairs-cycle.gif, assets/stairs-og.png
   jump_cmu.py         CMU jump clips → data/jump_cmu.json (per-clip stats, phase curves), data/jump_styles.json (embedded in jump/index.html)
   check_jump.py       slip / floor / flight-parabola checks of jump/index.html in headless Chromium
