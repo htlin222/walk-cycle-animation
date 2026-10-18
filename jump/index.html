@@ -75,6 +75,7 @@ header p.nav span[aria-current]{color:var(--ink);font-size:13px;font-weight:600}
 label.tog{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer}
 label.tog input{accent-color:var(--accent)}
 @media (max-width:520px){.speed input{width:80px}.chip{padding:5px 6px;font-size:11px}header p{display:none}}
+@media (max-width:640px){header p{display:none}}   /* the jump needs the height: on a narrow screen the title is only the name and the nav */
 </style>
 
 </head>
@@ -414,7 +415,7 @@ const cv=document.getElementById("stage"), ctx=cv.getContext("2d");
 const sc=document.createElement("canvas"), sx=sc.getContext("2d");
 const mk=document.createElement("canvas"), mx=mk.getContext("2d");
 const lo=document.createElement("canvas"), lx=lo.getContext("2d");
-let W=0,H=0,dpr=1,S=100,cx=0,gy=0;
+let W=0,H=0,dpr=1,S=100,cx=0,gy=0,FX=0;   // FX: screen x of the middle of the fixed camera's frame
 let KX=-0.62, KY=0.2, SH_A=1, SH_BLUR=1;   // shadow shear, darkness and softness (recomputed each frame)
 // fixed camera: a point light hangs over the middle of the stage (height LH, a little behind the walker's line)
 const LH=4.2, LZ=0.75;
@@ -434,19 +435,33 @@ function resize(){
   W=cv.clientWidth; H=cv.clientHeight;
   for(const c of [cv,sc,mk]){ c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); }
   lo.width=Math.max(1,Math.round(W*dpr/5)); lo.height=Math.max(1,Math.round(H*dpr/5));
-  S=Math.min(H*0.205, W*0.24);   // smaller than the run: head room for the flight and raised arms
   const rr=document.querySelector(".rail").getBoundingClientRect(), railTop=rr.height? rr.top : H;   // keep the feet and shadow above the controls
+  // a little smaller than the run: head room for the flight (head top ≈2.7 leg lengths at the apex). Across, one broad jump
+  // covers ≈2.05 leg lengths (take-off stance to landing), so the width allows more than on the other pages. On a narrow
+  // screen the title sits over the figure: fit the apex between the title and the controls (2.7 + 0.3 below the floor).
+  const hd=document.querySelector("header").getBoundingClientRect();
+  S=Math.min(H*0.235, W*0.39, W<640 && hd.height? Math.min((railTop-hd.bottom-8)/3.05,(H*0.74-hd.bottom-8)/2.75) : Infinity);
   gy=Math.min(H*0.74, railTop-0.3*S);
+  // fixed camera: the jump is framed in the middle, nudged right if the title text would sit over the take-off stance
+  const tr=Math.max(0,...[...document.querySelectorAll("header h1, header p:not(.nav), header p.nav > *")].map(e=>{ const g=document.createRange(); g.selectNodeContents(e); const r=g.getBoundingClientRect(); return r.width? r.right : 0; }));
+  FX=W*0.5+(W<640? 0 : Math.max(0, Math.min(tr+10-(W*0.5-0.75*S), W*0.5-1.15*S-10)));
 }
 addEventListener("resize",resize); resize();
+if(document.fonts){ document.fonts.ready.then(resize); document.fonts.addEventListener?.("loadingdone",resize); }   // the title's size (and so the layout) changes once the web fonts arrive
 
 let phase=0, travel=0, playing=true, speed=1, last=performance.now();
-// camera: "fixed" keeps the world still so planted feet stay planted and every push-off reads as acceleration
+// camera: "fixed" keeps the world still from the countermovement to the landing, so planted feet stay planted and every
+// push-off reads as acceleration. It frames one jump (take-off stance to landing, centred), and after a broad jump it
+// glides on to the next one while the jumper absorbs the landing and stands (recovery + weighing), never mid-action.
 let camMode="fixed", camX=null; const prints=[];
+const span=m=>0.05+0.36*m.FD;                        // middle of the area one jump covers, from the take-off ball (leg lengths)
+let pan={from:null, to:0, t0:0, dur:1};
+function camGoal(){ const after=clock>=M.t0[6], m=after? GS[pending||style] : M; return (after? base+M.FD : base)+span(m); }
+function camCentre(){ const u=Math.min(1,Math.max(0,(simT-pan.t0)/pan.dur)); return pan.from===null? pan.to : pan.from+(pan.to-pan.from)*u*u*u*(u*(6*u-15)+10); }
+function glide(dur){ pan={from:camCentre(), to:camGoal(), t0:simT, dur:Math.max(1e-3,dur)}; }
 function updateCamera(){
-  if(camX===null) camX=travel-(W*(camMode==="fixed"&&M.FD>0?0.2:0.5))/S;
   if(camMode==="follow") camX=travel-(W*0.5)/S;
-  else if((clock<WEIGH && S*(travel-camX)>W*0.78) || S*(travel-camX)>W+S) camX=travel-W*0.18/S;   // jumped far to the right: cut back left while standing
+  else camX=camCentre()-FX/S;
   cx=S*(travel-camX);
 }
 
@@ -535,11 +550,20 @@ function drawSkeleton(Q){
   seg(ctx,[Q.pelvis,Q.neck],w*2,"#ff5a36","round");
   disc(ctx,Q.pelvis,0.024,"#1f2233");
   disc(ctx,Q.com,0.03,"#ff5a36"); disc(ctx,Q.com,0.012,"#ffffff");      // whole-body centre of mass
-  // COM height across the jump, current time marked
-  const hy=t=>2.2+(body(t).com[1]-1.1)*2.5, X0=0.7;
-  ctx.strokeStyle="rgba(31,34,51,.35)"; ctx.lineWidth=w; ctx.beginPath();
-  for(let i=0;i<=160;i++){ const t=M.TOT*i/160, x=X0+1.4*i/160; i?ctx.lineTo(x,hy(t)):ctx.moveTo(x,hy(t));} ctx.stroke();
-  disc(ctx,[X0+1.4*clock/M.TOT, hy(clock)],0.022,"#ff5a36");
+  ctx.restore();
+  // COM height across the jump, current time marked: a small fixed panel in the top-right corner (below the title on a
+  // narrow screen), so it never rides along with the figure or runs off the edge
+  ctx.save(); ctx.setTransform(dpr,0,0,dpr,0,0);
+  const pw=Math.min(240,W*0.3), ph=pw*0.36, hb=document.querySelector("header").getBoundingClientRect().bottom;
+  const px=W-Math.max(16,Math.min(28,W*0.03))-pw, py=W<640? hb+10 : 28, n=160, ys=[];
+  for(let i=0;i<=n;i++) ys.push(body(M.TOT*i/n).com[1]);
+  const lo=Math.min(...ys), hi=Math.max(...ys), Y=v=>py+ph-(v-lo)/(hi-lo)*ph, X=t=>px+pw*t/M.TOT;
+  ctx.fillStyle="rgba(31,34,51,.07)"; ctx.fillRect(X(M.tTO),py,X(M.tTD)-X(M.tTO),ph);      // flight
+  ctx.strokeStyle="rgba(31,34,51,.4)"; ctx.lineWidth=1.25; ctx.lineJoin="round"; ctx.beginPath();
+  ys.forEach((v,i)=>{ const x=px+pw*i/n; i?ctx.lineTo(x,Y(v)):ctx.moveTo(x,Y(v)); }); ctx.stroke();
+  ctx.beginPath(); ctx.arc(X(clock),Y(body(clock).com[1]),3.5,0,TAU); ctx.fillStyle="#ff5a36"; ctx.fill();
+  ctx.font="500 10px 'IBM Plex Mono', ui-monospace, monospace"; ctx.fillStyle="#8a8c9c"; ctx.textBaseline="bottom";
+  ctx.fillText("COM 高度 height", px, py-3);
   ctx.restore();
 }
 
@@ -569,9 +593,10 @@ function advance(dt){   // fixed-step simulation: the jump clock, travel and spr
   while(accum>=HSTEP){ accum-=HSTEP; simT+=HSTEP;
     const prev=clock; clock+=HSTEP;
     if(prev<M.tTD && clock>=M.tTD) for(const dx of [0,FAR]) prints.push({x:base+M.FD+dx-BALL[0], t:simT, near:dx===0});
+    if(prev<M.t0[6] && clock>=M.t0[6]) glide(M.TOT-clock+WEIGH-0.1);    // landed: frame the next jump while recovering and standing
     if(clock>=M.TOT){                                   // next jump starts where this one landed
       FROM=snapshot(M.TOT); clock-=M.TOT; base+=M.FD;
-      if(pending){ useModel(pending); pending=null; } }
+      if(pending){ useModel(pending); pending=null; glide(WEIGH-0.1-clock); } }
     travel=base+body(clock).com[0];
     compose(kin(clock), true, HSTEP);
     if(simT>blinkAt+0.2) blinkAt=simT+2+Math.random()*3.5;
@@ -579,7 +604,7 @@ function advance(dt){   // fixed-step simulation: the jump clock, travel and spr
 const sty=document.getElementById("sty");
 sty.oninput=()=>{ EX=+sty.value; };
 const camBtns=[...document.querySelectorAll(".cam")];
-camBtns.forEach(b=>b.onclick=()=>{ camMode=b.dataset.c; if(camMode==="fixed") camX=travel-cx/S; camBtns.forEach(x=>x.setAttribute("aria-pressed",x===b)); });
+camBtns.forEach(b=>b.onclick=()=>{ camMode=b.dataset.c; if(camMode==="fixed"){ pan={from:camX+FX/S, to:camGoal(), t0:simT, dur:0.8}; } camBtns.forEach(x=>x.setAttribute("aria-pressed",x===b)); });
 const styleBtns=[...document.querySelectorAll(".style[data-s]")], src=document.getElementById("src");
 function setSrc(k){ const J=JUMP[k], s=J.stats, m=GS[k];
   const what = k==="cmj" ? `${J.jumps} 次反向跳` : `${J.jumps} 次立定跳遠　距離 ${s.distance.toFixed(2)} m`;
@@ -587,11 +612,11 @@ function setSrc(k){ const J=JUMP[k], s=J.stats, m=GS[k];
 function setStyle(k){
   setSrc(k); styleBtns.forEach(b=>b.setAttribute("aria-pressed", b.dataset.s===k));
   if(k===style){ pending=null; return; }
-  if(clock<WEIGH){ FROM=snapshot(clock); clock=0; useModel(k); pending=null; }   // still standing: switch now, settle into the new stance
-  else pending=k;                                                               // mid-jump: finish this one first
+  if(clock<WEIGH){ FROM=snapshot(clock); clock=0; useModel(k); pending=null; glide(WEIGH-0.1); }   // still standing: switch now, settle into the new stance
+  else{ pending=k; if(clock>=M.t0[6]) glide(M.TOT-clock+WEIGH-0.1); }          // mid-jump: finish this one first
 }
 styleBtns.forEach(b=>b.onclick=()=>setStyle(b.dataset.s));
-setStyle("cmj"); travel=base+body(clock).com[0];
+setStyle("cmj"); travel=base+body(clock).com[0]; pan={from:null, to:camGoal(), t0:0, dur:1};
 function frame(now){
   const dt=Math.min(0.1,(now-last)/1000); last=now;
   if(playing) advance(dt*speed);

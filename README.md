@@ -96,6 +96,8 @@ Controls: playback speed (slow motion helps), running speed 慢跑 2.5 / 跑步 
 
 ## Quiet standing
 
+[![Animated quiet standing, eyes closed on foam, sway magnified ×10](assets/stand-cycle.gif)](https://htlin222.github.io/walk-cycle-animation/stand/)
+
 `stand/index.html` uses the walk page's body, drawing, springs and shadows. The person stands still, and the sway underneath comes from force-platform data.
 
 | Layer | Source | How it is used |
@@ -120,7 +122,7 @@ Median over subjects, with the interquartile range in brackets. Each subject's v
 | COM ML RMS (pendulum) | 0.24 cm | 0.23 cm | 0.55 cm | 0.56 cm |
 | Body sway angle RMS | 0.26° | 0.31° | 0.51° | 0.51° |
 
-Healthy young adults barely need vision on a firm floor: closing the eyes adds about 10 % to the AP sway. On foam, sway doubles and faster corrections appear. With eyes closed on foam, the median frequency doubles and the COP moves 3.4 times as fast as with eyes open on a firm floor. The true sway angle is about a quarter of a degree, a millimetre or two at the hip. The page draws it at true scale by default and has ×5 / ×10 buttons. A 10-second stabilogram in the top-right corner shows COP (thin) and COM (thick) at true scale in centimetres.
+Healthy young adults barely need vision on a firm floor: closing the eyes adds about 10 % to the AP sway. On foam, sway doubles and faster corrections appear. With eyes closed on foam, the median frequency doubles and the COP moves 3.4 times as fast as with eyes open on a firm floor. The true sway angle is about a quarter of a degree, a millimetre or two at the hip. The page draws it at true scale by default and has ×5 / ×10 buttons. A 10-second stabilogram shows COP (thin) and COM (thick) at true scale in centimetres: top right on a wide screen, a strip under the title on a phone.
 
 ### What is, and is not, in the model
 
@@ -131,7 +133,7 @@ Healthy young adults barely need vision on a firm floor: closing the eyes adds a
 - **No weight shifts.** Shifting and fidgeting appear in unconstrained standing over many minutes (Duarte & Zatsiorsky 1999). The BDS trials are 60 s with the instruction "stand as still as possible", so the page leaves them out.
 - **ML sway is not drawn on the body.** The view is from the side. ML sway is shown only in the stabilogram.
 
-Controls: playback speed, condition (four buttons above), sway magnification 實際 ×1 / ×5 / ×10, skeleton overlay (pendulum ankle → COM, COM floor projection and COP marker, all magnified like the body). The chips show Inhale 吸 / Exhale 吐.
+Controls: playback speed, condition (four buttons above), sway magnification 實際 ×1 / ×5 / ×10 (eases over about a second, so the body never tips in one frame), skeleton overlay (pendulum ankle → COM, COM floor projection and COP marker, all magnified like the body). The chips show Inhale 吸 / Exhale 吐.
 
 ## Stairs and ramps
 
@@ -269,7 +271,7 @@ Flight-time height is 2.7 cm (CMJ) and 3.2 cm (broad jump) above the COM's actua
 - **Toe-off.** Pivoting on the ball of the foot cannot lift the ankle as fast as the recordings show in the last 0.1 s before take-off. With the ball pinned, the COM would leave the floor at a third of its recorded speed and then jump onto the parabola. In that window the ankle follows its recorded height, the ball lifts on an arc about the toe tip, and the toe tip stays on the floor.
 - **Shadow under a body in the air.** With the fixed camera, the light hangs LH = 4.2 leg lengths above the floor. Lifting the body by h makes its shadow LH / (LH − h) larger, softer and fainter, and it shrinks and sharpens again on landing. The ambient shadow under the body spreads and fades with height.
 
-Controls: playback speed, 原地跳 CMJ / 立定跳遠 broad jump (the switch waits for the current jump to finish), camera 固定鏡頭 fixed (default) / 跟隨 follow, exaggeration, skeleton overlay with the COM path and a COM-height trace. The phase chips show Stand → Unweight → Brake → Propel → Flight → Land → Recover.
+Controls: playback speed, 原地跳 CMJ / 立定跳遠 broad jump (the switch waits for the current jump to finish), camera 固定鏡頭 fixed (default: still from the countermovement to the landing, then it glides on to frame the next broad jump while the jumper recovers and stands) / 跟隨 follow, exaggeration, skeleton overlay with the COM path and a COM-height trace (top right, flight shaded). The phase chips show Stand → Unweight → Brake → Propel → Flight → Land → Recover.
 
 ## Dance cycle
 
@@ -393,12 +395,13 @@ analysis/
   check_run.py        slip / floor / flight checks of run/index.html in headless Chromium
   render_run.py       → assets/run-cycle.gif, assets/run-og.png
   stand_bds.py        BDS balance data (--download fetches BDS.zip, ≈ 375 MB) → data/normative_stand_bds.json, data/stand_page.json (embedded in stand/index.html)
-  check_stand.py      feet / sway amplitude / pendulum checks of stand/index.html, and the walk's standing start vs git HEAD, in headless Chromium
+  check_stand.py      feet / sway amplitude / pendulum / layout checks of stand/index.html, and the walk's standing start vs git HEAD, in headless Chromium
+  render_stand.py     → assets/stand-cycle.gif, assets/stand-og.png
   stairs_camargo.py   Camargo et al. stair and ramp data (--download reads only the needed files, ≈ 400 MB) → data/normative_stairs_camargo.json, data/stairs_page.json (embedded in stairs/index.html)
   check_stairs.py     slip / surface / penetration / swing-clearance checks of stairs/index.html (all 20 conditions) in headless Chromium
   render_stairs.py    → assets/stairs-cycle.gif, assets/stairs-og.png
   jump_cmu.py         CMU jump clips → data/jump_cmu.json (per-clip stats, phase curves), data/jump_styles.json (embedded in jump/index.html)
-  check_jump.py       slip / floor / flight-parabola checks of jump/index.html in headless Chromium
+  check_jump.py       slip / floor / flight-parabola / framing checks of jump/index.html in headless Chromium
   render_jump.py      → assets/jump-cycle.gif, assets/jump-og.png
   dance_cmu.py        CMU dance clips → tempo from the motion, phase-aligned and averaged cycles, locked feet → data/dance_cmu.json (embedded in dance/index.html)
   check_dance.py      loop seam / foot slip / floor / NaN checks of dance/index.html in headless Chromium

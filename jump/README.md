@@ -61,7 +61,7 @@ Flight-time height is 2.7 cm (CMJ) and 3.2 cm (broad jump) above the COM's actua
 - **Toe-off.** Pivoting on the ball of the foot cannot lift the ankle as fast as the recordings show in the last 0.1 s before take-off. With the ball pinned, the COM would leave the floor at a third of its recorded speed and then jump onto the parabola. In that window the ankle follows its recorded height, the ball lifts on an arc about the toe tip, and the toe tip stays on the floor.
 - **Shadow under a body in the air.** With the fixed camera, the light hangs LH = 4.2 leg lengths above the floor. Lifting the body by h makes its shadow LH / (LH − h) larger, softer and fainter, and it shrinks and sharpens again on landing. The ambient shadow under the body spreads and fades with height.
 
-Controls: playback speed, 原地跳 CMJ / 立定跳遠 broad jump (the switch waits for the current jump to finish), camera 固定鏡頭 fixed (default) / 跟隨 follow, exaggeration, skeleton overlay with the COM path and a COM-height trace. The phase chips show Stand → Unweight → Brake → Propel → Flight → Land → Recover.
+Controls: playback speed, 原地跳 CMJ / 立定跳遠 broad jump (the switch waits for the current jump to finish), camera 固定鏡頭 fixed (default: still from the countermovement to the landing, then it glides on to frame the next broad jump while the jumper recovers and stands) / 跟隨 follow, exaggeration, skeleton overlay with the COM path and a COM-height trace (top right, flight shaded). The phase chips show Stand → Unweight → Brake → Propel → Flight → Land → Recover.
 ```
 
 Lines for "## Reproduce the data" (add to the `analysis/` tree, and a pipeline sentence below the running one):

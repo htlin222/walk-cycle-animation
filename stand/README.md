@@ -33,7 +33,7 @@ Median over subjects, with the interquartile range in brackets. Each subject's v
 | COM ML RMS (pendulum) | 0.24 cm | 0.23 cm | 0.55 cm | 0.56 cm |
 | Body sway angle RMS | 0.26° | 0.31° | 0.51° | 0.51° |
 
-Healthy young adults barely need vision on a firm floor: closing the eyes adds about 10 % to the AP sway. On foam, sway doubles and faster corrections appear. With eyes closed on foam, the median frequency doubles and the COP moves 3.4 times as fast as with eyes open on a firm floor. The true sway angle is about a quarter of a degree, a millimetre or two at the hip. The page draws it at true scale by default and has ×5 / ×10 buttons. A 10-second stabilogram in the top-right corner shows COP (thin) and COM (thick) at true scale in centimetres.
+Healthy young adults barely need vision on a firm floor: closing the eyes adds about 10 % to the AP sway. On foam, sway doubles and faster corrections appear. With eyes closed on foam, the median frequency doubles and the COP moves 3.4 times as fast as with eyes open on a firm floor. The true sway angle is about a quarter of a degree, a millimetre or two at the hip. The page draws it at true scale by default and has ×5 / ×10 buttons. A 10-second stabilogram shows COP (thin) and COM (thick) at true scale in centimetres: top right on a wide screen, a strip under the title on a phone.
 
 ### What is, and is not, in the model
 
@@ -44,7 +44,7 @@ Healthy young adults barely need vision on a firm floor: closing the eyes adds a
 - **No weight shifts.** Shifting and fidgeting appear in unconstrained standing over many minutes (Duarte & Zatsiorsky 1999). The BDS trials are 60 s with the instruction "stand as still as possible", so the page leaves them out.
 - **ML sway is not drawn on the body.** The view is from the side. ML sway is shown only in the stabilogram.
 
-Controls: playback speed, condition (four buttons above), sway magnification 實際 ×1 / ×5 / ×10, skeleton overlay (pendulum ankle → COM, COM floor projection and COP marker, all magnified like the body). The chips show Inhale 吸 / Exhale 吐.
+Controls: playback speed, condition (four buttons above), sway magnification 實際 ×1 / ×5 / ×10 (eases over about a second, so the body never tips in one frame), skeleton overlay (pendulum ankle → COM, COM floor projection and COP marker, all magnified like the body). The chips show Inhale 吸 / Exhale 吐.
 ```
 
 ### Line for the walk page's "Details that took evidence to get right"

@@ -12,10 +12,15 @@
 <meta property="og:title" content="Quiet Standing Study">
 <meta property="og:description" content="Postural sway of 59 healthy young adults (BDS force-platform data) drives an inverted-pendulum body that stands still with both feet planted. Eyes open / closed, firm floor / foam.">
 <meta property="og:url" content="https://htlin222.github.io/walk-cycle-animation/stand/">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://htlin222.github.io/walk-cycle-animation/assets/stand-og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A flat-style character standing on a foam pad, tipped forward about the ankles by magnified postural sway, with the inverted-pendulum skeleton overlay and a 10-second stabilogram of centre-of-pressure and centre-of-mass sway.">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Quiet Standing Study">
 <meta name="twitter:description" content="Postural sway of 59 healthy young adults (BDS force-platform data) drives an inverted-pendulum body that stands still with both feet planted.">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"CreativeWork","name":"Quiet Standing Study","description":"Evidence-based procedural animation of quiet standing: postural sway from a public force-platform balance data set drives an ankle-strategy inverted pendulum.","url":"https://htlin222.github.io/walk-cycle-animation/stand/","author":{"@type":"Person","name":"htlin222"},"keywords":"postural sway, quiet standing, inverted pendulum, procedural animation"}</script>
+<meta name="twitter:image" content="https://htlin222.github.io/walk-cycle-animation/assets/stand-og.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"CreativeWork","name":"Quiet Standing Study","description":"Evidence-based procedural animation of quiet standing: postural sway from a public force-platform balance data set drives an ankle-strategy inverted pendulum.","url":"https://htlin222.github.io/walk-cycle-animation/stand/","image":"https://htlin222.github.io/walk-cycle-animation/assets/stand-og.png","author":{"@type":"Person","name":"htlin222"},"keywords":"postural sway, quiet standing, inverted pendulum, procedural animation"}</script>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html,body{height:100%}body{margin:0;font:14px system-ui,sans-serif}[hidden]{display:none!important}*{box-sizing:border-box}</style>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -71,9 +76,9 @@ label.tog{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut
 label.tog input{accent-color:var(--accent)}
 @media (max-width:520px){.speed input{width:80px}.chip{padding:5px 6px;font-size:11px}header p{display:none}}
 /* stabilogram: the last 10 s of sway, true scale (cm), drawn on the stage canvas inside this box */
-#trace{position:absolute;top:20px;right:max(20px, env(safe-area-inset-right,0px));width:280px;height:150px;pointer-events:none}
+#trace{position:absolute;top:20px;right:max(20px, env(safe-area-inset-right,0px));width:300px;height:180px;pointer-events:none}
 .style{white-space:nowrap}
-@media (max-width:720px){#trace{display:none}}
+@media (max-width:720px){#trace{left:max(16px, env(safe-area-inset-left,0px));right:max(16px, env(safe-area-inset-right,0px));width:auto;height:112px}#trace.off{display:none}}
 @media (max-width:520px){.style{padding:6px 7px;font-size:12px}}
 </style>
 
@@ -115,7 +120,7 @@ const G={ LT:0.47, LS:0.53, mod1:x=>x-Math.floor(x),
   rot:(v,a)=>[v[0]*Math.cos(a)-v[1]*Math.sin(a), v[0]*Math.sin(a)+v[1]*Math.cos(a)],
   shoePt:(A,pitch,v)=>{ const q=G.rot(v,pitch); return [A[0]+q[0],A[1]+q[1]]; } };
 const STAND_X=0.04, STAND_AY=0.07, STAND_H=1.07, THORAX=-1.59;   // THORAX: mean CMU trunk angle of the walk's neutral style
-let EX=0.5, MAG=1;
+let EX=0.5, MAG=1, MAGT=1;   // MAG eases toward the chosen magnification MAGT (log scale, ≈1 s)
 const LEG=STAND.leg_m, HP=STAND.pendulum.h_L, W0=STAND.pendulum.w0;   // HP: ankle → COM in leg lengths; W0 = √(g h / (h² + ρ²))
 const PAD_M=0.06;                                                     // foam block height (Airex Balance Pad)
 const COND_NAMES={open_firm:"睜眼·硬地", closed_firm:"閉眼·硬地", open_foam:"睜眼·軟墊", closed_foam:"閉眼·軟墊"};
@@ -394,12 +399,25 @@ function resize(){
   W=cv.clientWidth; H=cv.clientHeight;
   for(const c of [cv,sc,mk]){ c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); }
   lo.width=Math.max(1,Math.round(W*dpr/5)); lo.height=Math.max(1,Math.round(H*dpr/5));
-  S=Math.min(H*0.255, W*0.27);
   const rr=document.querySelector(".rail").getBoundingClientRect(), railTop=rr.height? rr.top : H;   // keep the feet and shadow above the controls
+  S=Math.min(H*0.255, W*0.27);
+  traceBox.classList.remove("off"); traceBox.style.top="";
+  const hb=document.querySelector("header").getBoundingClientRect().bottom;
+  if(W<=720){   // narrow: stabilogram strip under the title, figure (head top ≈2.45 leg lengths, shadow 0.3 below) in the rest
+    const top=hb+6, tb=top+traceBox.offsetHeight+14, fit=Math.min((railTop-tb)/2.75, (H*0.74-tb)/2.45);   // gy = min(0.74 H, rail − 0.3 S)
+    if(fit>=S){ traceBox.style.top=top+"px"; S=Math.min(H*0.255, W*0.5, fit); }
+    else traceBox.classList.add("off"); }
   gy=Math.min(H*0.74, railTop-0.3*S);
-  cx=W*(W>720?0.42:0.5); updateLight();
+  // keep the head clear of the title text: stand to the right of it, or (no room) below it
+  const tr=Math.max(0,...[...document.querySelectorAll("header h1, header p:not(.nav), header p.nav > *")].map(e=>{ const g=document.createRange(); g.selectNodeContents(e); const q=g.getBoundingClientRect(); return q.width? q.right : 0; }));
+  cx=W*(W>720?0.42:0.5);
+  if(gy-2.45*S<hb && tr+12>cx-0.4*S){   // head (with the hair) reaches ≈0.4 S behind cx at ×10
+    if(tr+12+0.4*S<=W-0.7*S) cx=tr+12+0.4*S;
+    else{ S=Math.min(S,(railTop-hb-10)/2.75,(H*0.74-hb-10)/2.45); gy=Math.min(H*0.74, railTop-0.3*S); } }
+  updateLight();
 }
 addEventListener("resize",resize); resize();
+if(document.fonts){ document.fonts.ready.then(resize); document.fonts.addEventListener?.("loadingdone",resize); }   // the title's size (and so the layout) changes once the web fonts arrive
 
 let playing=true, speed=1, last=performance.now();
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -490,7 +508,7 @@ function drawSkeleton(Q){
 const TR_N=600, TR=new Float32Array(TR_N*4); let trI=0, trCount=0;
 function pushTrace(sw){ TR.set([sw.cop[0],sw.com[0],sw.cop[1],sw.com[1]], trI*4); trI=(trI+1)%TR_N; trCount=Math.min(TR_N,trCount+1); }
 function drawTrace(){
-  if(getComputedStyle(traceBox).display==="none") return;
+  if(getComputedStyle(traceBox).display==="none") return;   // (hidden only on a screen too short for it)
   const r=traceBox.getBoundingClientRect(), half=r.height/2, YC=3;   // ±3 cm
   ctx.save(); ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.font="500 11px 'IBM Plex Mono', ui-monospace, monospace"; ctx.textBaseline="top";
@@ -498,11 +516,13 @@ function drawTrace(){
     const y0=r.top+half*j, yc=y0+half/2+6, k=(half/2-10)/YC;
     ctx.fillStyle="#8a8c9c"; ctx.fillText(label, r.left, y0);
     ctx.strokeStyle="#e4e4ea"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(r.left,yc); ctx.lineTo(r.right,yc); ctx.stroke();
-    for(const [c,col,lw] of [[0,"#ff5a36",1],[1,"#1f2233",2]]){
-      ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.beginPath();
+    ctx.save(); ctx.beginPath(); ctx.rect(r.left-2,y0+12,r.width+4,half-12); ctx.clip();   // keep each trace in its band
+    for(const [c,col,lw] of [[0,"#ff5a36",1.25],[1,"#1f2233",2]]){
+      ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.lineJoin="round"; ctx.beginPath();
       for(let n=0;n<trCount;n++){ const i=(trI-trCount+n+TR_N)%TR_N, x=r.right-(trCount-1-n)/(TR_N-1)*r.width, y=yc-TR[i*4+j*2+c]*k;
         n?ctx.lineTo(x,y):ctx.moveTo(x,y); }
       ctx.stroke(); }
+    ctx.restore();
   }
   ctx.fillStyle="#8a8c9c"; ctx.textAlign="right";
   ctx.fillText(`±${YC} cm · 10 s`, r.right, r.top); ctx.fillStyle="#ff5a36"; ctx.fillText("COP", r.right-96, r.top+half);
@@ -535,6 +555,7 @@ function advance(dt){   // fixed-step simulation: sway clock, breathing and spri
     brRate=1+0.08*(0.6*Math.sin(TAU*simT/23.0)+0.4*Math.sin(TAU*simT/9.7+2));
     breathPh=G.mod1(breathPh+HSTEP*14/60*brRate);
     if(blend<1) blend=Math.min(1,blend+HSTEP/0.9);
+    if(MAG!==MAGT){ const l=Math.log(MAG)+(Math.log(MAGT)-Math.log(MAG))*(1-Math.exp(-HSTEP/0.3)); MAG=Math.abs(l-Math.log(MAGT))<1e-4? MAGT : Math.exp(l); }
     const R=kin(simT);
     if(++sub4===4){ sub4=0; pushTrace(R.sw); }     // 60 Hz trace
     compose(R, true, HSTEP);
@@ -551,7 +572,7 @@ function setStyle(k){
 }
 styleBtns.forEach(b=>b.onclick=()=>setStyle(b.dataset.s));
 const magBtns=[...document.querySelectorAll(".mag")];
-function setMag(m){ MAG=m; magBtns.forEach(b=>b.setAttribute("aria-pressed", +b.dataset.m===m)); }
+function setMag(m, now){ MAGT=m; if(now) MAG=m; magBtns.forEach(b=>b.setAttribute("aria-pressed", +b.dataset.m===m)); }
 magBtns.forEach(b=>b.onclick=()=>setMag(+b.dataset.m));
 setStyle("open_firm"); blend=1;
 function frame(now){
