@@ -184,7 +184,46 @@ Steeper climbs need more hip and knee flexion and a longer stance; steeper desce
 - **Pelvis frame.** OpenSim reports pelvis tilt and list about the lab axes, and the subjects walk along the lab's z axis, so its "tilt" is really obliquity there. The rotations are re-expressed in the walking direction. The thigh angle is hip flexion − anterior pelvic tilt, and this convention fits the measured pelvis height better in the 4 subjects tested (rms 4.5–5.2 mm, against 5.6–7.9 mm for the opposite sign). The ankle is zeroed so that the foot is flat in quiet standing at the start of each trial (median offset 4.3°).
 - **Checks.** [`analysis/check_stairs.py`](analysis/check_stairs.py) runs all 20 conditions in headless Chromium. While the same sole point stays in contact, it moves at most 0.0003 leg lengths (0.25 mm; under 0.0001 on stairs). The lowest sole point in stance stays within 0.0002 leg lengths of the surface. No sole point goes more than 0.0003 leg lengths (0.25 mm) into a tread, nosing, riser or ramp at any time. The swinging sole clears the stairs by at least 0.005 leg lengths (4 mm) and the ramp by at least 0.0009 (0.8 mm).
 
-Controls: playback speed, 上樓 up stairs / 下樓 down stairs / 上坡 up ramp / 下坡 down ramp, step height 4–7″ or incline 5.2–18° (switching fades through white), exaggeration, skeleton overlay with the ankle path over the current stride. The phase chips show Contact → Mid-stance → Toe-off → Swing.
+Controls: playback speed, 上樓 up stairs / 下樓 down stairs / 上坡 up ramp / 下坡 down ramp / 地形 Course, step height 4–7″, incline 5.2–18° or course preset (樓梯 / 坡道 / 障礙 / 綜合 / 隨機; switching fades through white), exaggeration, skeleton overlay with the ankle path over the current stride. The phase chips show Contact → Mid-stance → Toe-off → Swing.
+
+### 地形 Course: one walk over level ground, stairs, ramps, curbs and hurdles
+
+The 地形 Course mode walks without stopping through a course that loops seamlessly. The presets are 樓梯 (level → 5 steps up → landing → 5 steps down), 坡道 (level → ramp up → top → ramp down), 障礙 (hurdles at three heights and a curb up and down), 綜合 (all of them). 隨機 builds a course from a seed. The lap ends at the height and phase where it starts, so the course repeats exactly.
+
+| Part | Source | How it is used |
+|---|---|---|
+| Level walking | Camargo et al. 2021 level-ground trials, comfortable speed, straight walking only (22 subjects, 1,183 cycles) | Stance 58.8 %, stride 1.12 s, stride 1.56 leg lengths. |
+| Stair and ramp strides, including the transitions | The same stair (6 in) and ramp (9.2°) trials, every foot contact typed by what it lands on (floor, step / ramp, landing) | Each leg cycle is named by the four footholds around it. The cycles that step onto the landing (up: second-to-last step → landing, 22 subjects, 230 cycles; last step → landing, 190 cycles) and the first and last full cycles of a descent (112 and 228 cycles) are averaged and used whole. The stance and the timing of every cycle come from the measured cycle for its footholds. |
+| Stepping onto and off the stairs / ramp from the floor | The measured swings only (e.g. floor → first step, 22 subjects, 114 swings, 0.45 s; landing → first step down, 88 swings, 0.56 s), joined to a level-walking stance | In this dataset every stair and ramp trial starts from standing one step before the first riser and ends by stopping just after the last one. The floor-side transition strides are gait initiation and termination, not walking, so a whole measured cycle cannot be used there. The page uses the measured swing onto the step instead, and the stance it leaves from is level walking. |
+| Curb (one 6-inch step) | The swings onto the first step and off the last step | Step-up: floor → first step, then first step → landing. Step-down: landing → first step down, then last step → floor. |
+| Hurdles (10, 20, 30 % of leg length; 2 cm thick) | No open dataset with obstacle geometry was found (one candidate on Zenodo could not be used). Modelled from the literature: Chardon et al. 2024 (28 young adults, 15 cm obstacle) for clearance and foot placement, Lu et al. 2022 (12 healthy older adults, 10–30 % of leg length) for how clearance and joint angles change with height | Leading toe clearance 10.1 cm (0.117 leg lengths) at every height, as Lu et al. found no height effect. Trailing clearance = leading × Lu's trailing / leading ratio at that height: 0.113, 0.120 and 0.126 leg lengths. While crossing, hip and knee flexion are raised to Lu's values when the toe is over the obstacle (leading hip 58 / 67 / 75°, knee 90 / 107 / 118°; trailing hip 27 / 32 / 35°, knee 99 / 115 / 129°). Foot placement: trailing ball 42.4 cm before the bar, leading heel 25.1 cm after it, trailing heel 90 cm after it (Chardon et al.). |
+
+How the course is built:
+
+- **Footholds first.** The course is a list of alternating footholds, each tagged with the terrain it lands on. For each feature, the number of level steps before it is chosen from the designed gap (in metres) and corrected by a trial solve. The total is kept even, so the same foot starts every lap.
+- **Which foot leads.** Feet strictly alternate, so which foot meets the first riser follows from the step count. The approach is planned in steps, not distance: the step count and three per-step stride adjustments before each feature (hip excursion scaled ×0.70–1.45, set at each contact and blended across the cycle) put the foot whose measured swing is "floor → first step" exactly on the first riser. That swing is what the data was recorded for. The stairs are then placed by least squares so that every foot on the flight stands where the subjects' did on the tread, as a fraction of it.
+- **Then the solver of the stairs page, along a whole lap.** Speed comes from "the loaded foot does not move", body height from the loaded heel or ball on the surface, and each stance sample is placed so the sole touches the ground. Within a stance, the sole point in contact is held still. When contact passes to another point (heel → ball → bent toe), that point is held from where it is, so the foot rolls without sliding. The swing carries the corrections from foot-off to the next contact. It is lifted wherever the sole would come within 2 % of leg length of a step, curb, nosing or ramp, including ahead of a riser and at the half-way points the page draws between samples.
+- **Hurdle clearance exactly as modelled.** For each crossing, the swing is adjusted vertically, up or down, with a narrow smooth correction at the closest pass, until the sole's lowest point over the bar equals the modelled clearance. The crossing step is split around the bar in Chardon's proportions.
+- **Seamless loop.** The lap is solved as one periodic problem: timeline, body path and both legs repeat with an offset of one lap length (and the lap's height change, which the presets keep at zero). Nothing is blended across the seam.
+
+Checks: [`analysis/check_course.py`](analysis/check_course.py) plays the four presets and three random seeds for a full lap at 240 Hz. Results:
+
+- While the same sole point stays in contact, it moves at most 0.0003 leg lengths (0.25 mm).
+- The lowest sole point in stance stays within 0.0007 leg lengths of the ground.
+- No sole point goes more than 0.0001 leg lengths into the ground, a step, a curb or a hurdle.
+- The swinging sole clears the terrain by at least 0.002 leg lengths.
+- Played back at 1/1920 s with sole points every millimetre, every hurdle crossing's clearance is within 0.0007 leg lengths (0.6 mm) of the model.
+- Across the lap seam, the frame-to-frame change of every table is at most 1.3 × the largest anywhere else in the lap.
+- No page errors, and no horizontal scroll at 390 px.
+
+Course caveats:
+
+- The floor-side transitions use measured swings with a level-walking stance, because the dataset has no walking-through transitions there.
+- The step off the last stair onto the floor has 29 cycles from 6 subjects (3 subjects on the ramp).
+- The hurdle model mixes young-adult clearance and placement with older-adult trends for height and joint angles.
+- The crossing step is shorter than measured: the trailing ball lands about 0.39 leg lengths before the bar (measured 0.49) and the leading heel about 0.23 after it (0.29). Longer steps would need more hip excursion than the stride scaling allows.
+- Designed gaps before hurdles and curbs come out within about ±0.7 leg lengths (±0.6 m). On stairs and ramps they are exact.
+- Building a course takes 0.3–1 s in the browser.
 
 Caveats: the upper body is the neutral level walk. No stair-specific data was found for arm swing or gaze, so these are unchanged (people look down more on stairs, Cromwell & Wellmon 2001). The dataset locks the lumbar joint and has no trunk markers, so trunk lean is inferred from the pelvis. No handrail.
 
@@ -412,6 +451,7 @@ Pitching pipeline: `python analysis/pitch_obp.py --download --embed`, then `pyth
 - **步態事件：** 觸地與離地改由腳跟、腳尖標記點判定；資料庫原本的事件在下樓時晚了約 130 ms。
 - **軀幹前傾：** 依同一批受試者相對平地行走的骨盆前傾量：上樓 +6.5 至 +8.1°，下樓幾乎不變。
 - **無限樓梯：** 鏡頭跟著斜向移動，樓梯一直延伸。
+- **地形 Course：** 平地、樓梯、坡道、路緣與跨欄串成一圈無縫循環（4 種預設與隨機）。樓梯與坡道的上下轉換步取自同一資料庫的實測轉換步週期與擺動期；跨欄的腳尖離障高度、跨越時的髖膝屈曲與落腳位置依 Chardon 2024、Lu 2022 建模，擺動腳離欄高度正好等於模型值。
 
 **跳躍（`jump/`）：**
 
@@ -458,6 +498,8 @@ Pitching pipeline: `python analysis/pitch_obp.py --download --embed`, then `pyth
 - Camargo J, Ramanathan A, Flanagan W, Young A (2021). A comprehensive, open-source dataset of lower limb biomechanics in multiple conditions of stairs, ramps, and level-ground ambulation and transitions. *Journal of Biomechanics* 119:110320. [doi:10.1016/j.jbiomech.2021.110320](https://doi.org/10.1016/j.jbiomech.2021.110320). Data: Mendeley Data [fcgm3chfff](https://doi.org/10.17632/fcgm3chfff.1), [k9kvm5tn3f](https://doi.org/10.17632/k9kvm5tn3f.1), [jj3r5f9pnf](https://doi.org/10.17632/jj3r5f9pnf.1) (CC-BY-4.0).
 - Leroux A, Fung J, Barbeau H (2002). Postural adaptation to walking on inclined surfaces: I. Normal strategies. *Gait & Posture* 15(1):64–74. [doi:10.1016/s0966-6362(01)00181-3](https://doi.org/10.1016/s0966-6362(01)00181-3).
 - Cromwell RL, Wellmon R (2001). Sagittal plane head stabilization during level walking and ambulation on stairs. *Physiotherapy Research International* 6(3):179–192. [doi:10.1002/pri.226](https://doi.org/10.1002/pri.226).
+- Chardon M, Barbieri FA, Hansen C, Petit P, Vuillerme N (2024). Impact of overweight on spatial-temporal gait parameters during obstacle crossing in young adults: a cross-sectional study. *Sensors* 24(23):7867. [doi:10.3390/s24237867](https://doi.org/10.3390/s24237867).
+- Lu S-H, Kuan Y-C, Wu K-W, Lu H-Y, Tsai Y-L, Chen H-H, Lu T-W (2022). Kinematic strategies for obstacle-crossing in older adults with mild cognitive impairment. *Frontiers in Aging Neuroscience* 14:950411. [doi:10.3389/fnagi.2022.950411](https://doi.org/10.3389/fnagi.2022.950411).
 - McMahon JJ, Suchomel TJ, Lake JP, Comfort P (2018). Understanding the key phases of the countermovement jump force-time curve. *Strength and Conditioning Journal* 40(4):96–106. [doi:10.1519/SSC.0000000000000375](https://doi.org/10.1519/SSC.0000000000000375)
 - Linthorne NP (2001). Analysis of standing vertical jumps using a force platform. *American Journal of Physics* 69(11):1198–1204. [doi:10.1119/1.1397460](https://doi.org/10.1119/1.1397460)
 - Lees A, Vanrenterghem J, De Clercq D (2004). Understanding how an arm swing enhances performance in the vertical jump. *Journal of Biomechanics* 37(12):1929–1940. [doi:10.1016/j.jbiomech.2004.02.021](https://doi.org/10.1016/j.jbiomech.2004.02.021)
