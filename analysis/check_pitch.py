@@ -39,7 +39,7 @@ JS = """()=>{ setPlay(false);
   const jump=(A,B)=>Math.max(...Object.keys(D.pos).map(k=>len3(sub3(A[k],B[k]))))*mm;
   res.seam_set_mm=jump(poseAt(SET-1e-6),poseAt(SET)); res.seam_loop_mm=jump(poseAt(shownTau(CYCLE-1e-6)),poseAt(0));
   // hair: from the swap through the whole set hold, how far the spring sits from the tuft it follows
-  const tuft=Q=>add3(add3(Q.head,Q.head_up,-0.025),norm3(add3(Q.head_up,Q.head_front,0.35)),0.062*0.95);
+  const tuft=tuftAt;   // the page's hair-tuft anchor (head sphere geometry lives in HEAD)
   seek(SET+DATA); accum=0; res.hair_after_swap_mm=0;
   for(let i=0;i<Math.round((CYCLE-DATA)/0.005);i++){ advance(0.005);
     if(tau>=SWAP || tau<SET) res.hair_after_swap_mm=Math.max(res.hair_after_swap_mm, len3(sub3(SPR.hair.x,tuft(poseAt(shownTau(tau)))))*mm); }

@@ -32,8 +32,8 @@
 |---|---|---|
 | Legs (hip, knee, ankle, pelvic tilt / rotation / obliquity) | Clinical normative gait, 24 healthy adults, comfortable overground walking (Fukuchi, Fukuchi & Duarte 2018, WBDS) | Forward kinematics per leg; pelvis height and forward speed are **solved** from "the weight-bearing heel or ball does not move", so feet never slide (measured slip ≤ 0.0002 leg lengths). |
 | Walking styles | CMU Graphics Lab motion capture: neutral walk (#104_02), happy vs sad performed by the **same actor** (#82_12 vs #82_10) | Stride, cadence and pelvic bounce fitted to each recording; trunk, head, shoulder girdle and arm curves played back after phase alignment to the clinical thigh curve (r ≥ 0.98). |
-| Body proportions | ANSUR II, 4,082 US Army men | Neck base (C7), sternal notch, ear height, chest / waist depth, limb lengths and girths. |
-| Head carriage | Craniovertebral angle, healthy young adults 50 ± 5° | Ear placed relative to C7 at 60°, the upright end of the healthy range. |
+| Body proportions | ANSUR II, 4,082 US Army men (Winter / Dempster where ANSUR has no measure) | Every landmark above the hip joint is within 1 cm of the ANSUR mean when standing: stature 1,752 mm vs 1,756, C7, ear (tragion), eye, shoulder, elbow and wrist heights, neck length, chest / waist depth, a 232 mm head (7.6 heads tall), arm segments and girths. Hair adds 4 cm. See [Proportions](#proportions). |
+| Head carriage | Craniovertebral angle, healthy young adults 50 ± 5° | Ear placed 0.13 leg lengths (108 mm) above C7 at 60°, the upright end of the healthy range. |
 | Facial expression | FACS (Ekman) | Happy: AU6 + AU12 (cheek raiser, lip-corner puller). Sad: AU1 + AU4 + AU15 (inner brow raiser, brow lowerer, lip-corner depressor). |
 | Hair, shirt hem | Damped springs, fixed 240 Hz semi-implicit Euler | Only secondary motion is simulated; the body itself is data. |
 
@@ -56,6 +56,52 @@ These match the gait-emotion literature: larger joint amplitudes and more bounce
 - **No limp.** Trunk, lumbar and head curves are symmetrised across the two steps. A single recorded cycle carries slow drift, and looping that drift once per stride is the visual signature of a limp.
 - **Point-light shadow.** With the fixed camera a light hangs over the stage. The shadow points away from it, grows longer with distance, fades as (h / d)³ (cos θ / d² irradiance) and softens as it lengthens.
 - **Standing is not still.** Before the first step, the body sways about the ankles with the measured eyes-open spectrum from `stand/` (0.26° RMS). The sway fades out as the gait amplitude rises, and the feet are untouched, so the no-slip travel is unchanged (check: [`analysis/check_stand.py`](analysis/check_stand.py)).
+
+### Proportions
+
+The character is measured in a neutral standing pose by [`analysis/proportions.py`](analysis/proportions.py), from the page's own pose and drawing code in headless Chromium. The rig's unit is the leg length L, the hip joint to the ankle joint (thigh + shank = 1). In ANSUR II that is trochanterion (level with the hip-joint centre) minus lateral malleolus, 828 mm. Heights are anchored at the hip joint. The legs, the hip height and every joint angle come from the motion data and were not changed.
+
+Before this pass the figure stood 2.28 L tall with its hair. Trunk, neck and hair were each too tall: the ear sat 72 mm high, and the quiff added 11 cm. The changes, shared by every 2D page (walk, run, stand, stairs, jump, dance and the crowd), are:
+
+- **Trunk:** the torso landmarks are scaled by 0.94 along the spine, so C7 sits 0.744 L (616 mm) above the hip joint.
+- **Neck:** the ear sits 0.13 L (108 mm) above C7, down from 0.17 L. The front neckline moves down to the sternal notch, and the neck column is a little slimmer at the top.
+- **Head:** the head is drawn 5 % larger, so it is 232 mm from chin to vertex and 195 mm long. Facial expressions scale with it.
+- **Hair:** a short quiff about 4 cm over the vertex, down from 11 cm.
+- **Shoulders and hands:** the shoulder joint is raised 8 mm. The ball fist is now a relaxed, half-curled hand 0.14 L (114 mm) from wrist to fingertip.
+
+| Measure (mm) | Reference | Before | After | Reference source |
+|---|---:|---:|---:|---|
+| Stature (floor to vertex, no hair) | 1756 | 1817 (+61) | 1752 (-4) | ANSUR II stature |
+| Top of hair | | 1929 | 1792 | a few cm over the vertex |
+| Head height (menton to vertex) | 232 | 220 (-12) | 231 (-1) | US adult men |
+| Head length | 200 | 185 (-14) | 195 (-5) | ANSUR II |
+| Neck: C7 to tragion (vertical) | 108 | 141 (+33) | 108 (-0) | ANSUR II tragion − cervicale |
+| Neck: chin to sternal notch (vertical) | 86 | 99 (+13) | 85 (-0) | menton − ANSUR II suprasternale |
+| Neck depth (mid-neck) | 127 | 132 (+5) | 135 (+8) | ANSUR II neck circumference / π |
+| Tragion (ear) height | 1625 | 1697 (+72) | 1626 (+1) | ANSUR II stature − tragion-to-top |
+| Eye height | 1644 | 1718 (+73) | 1648 (+4) | stature − 112 mm (Pheasant) |
+| C7 (cervicale) height | 1517 | 1556 (+39) | 1518 (+1) | ANSUR II |
+| Shoulder joint height | 1401 | 1427 (+26) | 1402 (+2) | ANSUR II acromion − 40 mm |
+| Chest depth | 254 | 253 (-1) | 254 (+0) | ANSUR II |
+| Waist depth | 238 | 239 (+1) | 237 (-0) | ANSUR II |
+| Trunk: C7 to hip joint | 616 | 655 (+39) | 617 (+1) | ANSUR II cervicale − trochanterion |
+| Upper arm (joint centres) | 305 | 306 (+1) | 306 (+1) | ANSUR II acromion–radiale − 30 mm |
+| Forearm (joint centres) | 258 | 257 (-1) | 257 (-1) | ANSUR II radiale–stylion − 10 mm |
+| Elbow height, arm hanging | 1105 | 1121 (+16) | 1096 (-9) | ANSUR II acromion − acromion–radiale |
+| Wrist height, arm hanging | 848 | 867 (+19) | 842 (-5) | ANSUR II (crotch height 846) |
+| Hand, wrist to fingertip | 193 | 95 (-98) | 114 (-79) | ANSUR II hand length (drawn half-curled) |
+| Thigh (hip to knee) | 430 | 389 (-41) | 389 (-41) | Winter 0.245 H (legs: gait data) |
+| Shank (knee to ankle) | 432 | 439 (+7) | 439 (+7) | Winter 0.246 H (legs: gait data) |
+| Shoe length | 295 | 287 (-8) | 287 (-8) | foot ≈270 mm + shoe |
+| Stature / head height | 7.57 | 8.26 (+0.69) | 7.59 (+0.02) | adult men 7.5–8 |
+
+What was not changed:
+
+- **Thigh and shank** (0.47 / 0.53 L, the knee a little high) belong to the gait model. Changing them would change the foot paths and the no-slip solution.
+- **The drawn hand** stays shorter than a real open hand (193 mm). An open, straight hand reads as a paddle in this flat style.
+- **Crotch height** (846 mm) is not visible in profile. The wrist hangs level with it, as in ANSUR.
+
+The pitch page draws its own 3D figure in body heights (H). In the set pose its head sphere is now r = 0.058 H (was 0.062), centred so the vertex is at 0.97 H, the thorax landmark + 0.158 H as in ANSUR. The neck is 0.07 H wide, the ANSUR neck circumference / π. The shoulder ring is about 0.235 H across (ANSUR biacromial breadth 0.237 H), the thighs are 0.11 H and the forearms 0.056 H thick, and the crown tuft is 0.02 H.
 
 ## Run cycle
 
@@ -392,6 +438,8 @@ analysis/
   extract_styles.py   phase alignment + smoothing → data/styles.json (embedded in index.html)
   ansur_stats.py      ANSUR II means → data/ansur2_male_means.json
   render_video.py     deterministic frame-stepped capture (Playwright) + ffmpeg → assets/walk-cycle-9-clips.mp4
+  render_walk.py      → assets/walk-cycle.gif, assets/og-image.png, assets/screenshot.png
+  proportions.py      standing-pose proportion audit of the 2D rig vs ANSUR II (README "Proportions"; --md before.html after.html)
   run_rbds.py         RBDS running data (--download fetches it, ≈ 400 MB) → data/normative_run_rbds.json
   extract_run.py      CMU running clips + RBDS → data/cmu_run_curves.json, data/run_styles.json (embedded in run/index.html)
   check_run.py        slip / floor / flight checks of run/index.html in headless Chromium
@@ -434,7 +482,7 @@ Pitching pipeline: `python analysis/pitch_obp.py --download --embed`, then `pyth
 
 - **腿：** 24 位健康成人的臨床步態常模。骨盆高度與前進速度由「承重腳不動」反推，腳完全不滑步。
 - **上半身與三種風格：** CMU 真人動作捕捉。開心與低落由同一位演員演出。
-- **身體比例：** ANSUR II 人體測量資料庫。
+- **身體比例：** ANSUR II 人體測量資料庫。站姿時髖關節以上的各標記點（身高、第七頸椎、耳、眼、肩、肘、腕）都在平均值 1 公分內，頭高 232 mm（7.6 頭身），頭髮只多 4 公分。
 - **頭部角度：** 依臨床的顱椎角。
 - **表情：** 依 FACS 臉部動作編碼。
 

@@ -223,6 +223,12 @@ function ring(c, lat, ap, hw, hd, n=12){ const r=[]; for(let i=0;i<n;i++){ const
 function axes(lat0, up0){ const up=norm3(up0), lat=norm3(sub3(lat0, [up[0]*dot3(lat0,up),up[1]*dot3(lat0,up),up[2]*dot3(lat0,up)])); return {lat, up, ap:cross3(up,lat)}; }
 
 // ---------- the figure, assembled from the 3D pose; parts drawn far to near ----------
+// Proportions in body heights H (ANSUR II men, same targets as the 2D rig; README "Proportions"). The head is a sphere of
+// radius r about a centre DROP below the head-band markers: vertex ≈0.97 H in the set (thorax_prox + 0.158 H, as C7/sternal
+// notch → vertex), diameter 0.116 H ≈ head length / height. Neck Ø ≈0.07 H (ANSUR neck circumference / π). Hair: a cap over
+// the back of the skull and a tuft ≈2 cm proud of the crown.
+const HEAD={r:0.058, drop:-0.012, tuft:0.02};
+const tuftAt=Q=>add3(add3(Q.head,Q.head_up,HEAD.drop),norm3(add3(Q.head_up,Q.head_front,0.35)),HEAD.r*0.95);
 // Widths in body heights, a little fuller than real limbs to match the walk / run character.
 function drawFigure(ctx, Q, C, pj, ball){
   const J={}; for(const k in Q) if(Array.isArray(Q[k]) && Q[k].length===3) J[k]=pj(Q[k]);
@@ -250,14 +256,14 @@ function drawFigure(ctx, Q, C, pj, ball){
       smooth(ctx,hull(shoe)); ctx.fillStyle=mixC(C.shoe,C.shoeD,t); ctx.fill();
       if(soleUp){ smooth(ctx,hull([...soleP,...band])); ctx.fillStyle=C.sole; ctx.fill(); }
       limb(ctx,J[sd+"_knee"],pj(an),0.068,0.05,mixC(C.pant,C.pantD,t));
-      limb(ctx,pj(lerp3(hip,kn,TH0)),J[sd+"_knee"],0.1,0.07,mixC(C.pant,C.pantD,t)); }});   // starts below the joint, inside the pants: no bump above the belt
+      limb(ctx,pj(lerp3(hip,kn,TH0)),J[sd+"_knee"],0.11,0.07,mixC(C.pant,C.pantD,t)); }});   // starts below the joint, inside the pants: no bump above the belt
   }
   // trunk: pants over the pelvis ring, shirt over waist / chest / shoulder rings (the twist between them is the
   // measured hip–shoulder separation), a placket line down the chest when it faces the camera
   { const thighTops=["rear","lead"].flatMap(sd=>{ const h=Q[sd+"_hip"], k=Q[sd+"_knee"], f=axes(pf.lat,sub3(h,k));   // pants reach down over the top of each thigh
-      return ring(lerp3(h,k,TH0),f.lat,f.ap,0.048,0.048,8); });
+      return ring(lerp3(h,k,TH0),f.lat,f.ap,0.055,0.055,8); });
     const hipR=ring(add3(Q.pelvis,pf.up,-0.02),pf.lat,pf.ap,0.1,0.07), waR=ring(waistC,mf.lat,mf.ap,0.088,0.064),
-      chR=ring(chestC,tf.lat,tf.ap,0.1,0.072), shR=ring(add3(Q.thorax_prox,tf.up,-0.03),tf.lat,tf.ap,shW+0.015,0.055),
+      chR=ring(chestC,tf.lat,tf.ap,0.1,0.072), shR=ring(add3(Q.thorax_prox,tf.up,-0.03),tf.lat,tf.ap,shW+0.022,0.055),
       ykR=ring(add3(Q.thorax_prox,tf.up,0.004),tf.lat,tf.ap,shW*0.55,0.042);
     const front=dot3(tf.ap,toCam);
     parts.push({d:torsoDepth, f:()=>{
@@ -276,7 +282,7 @@ function drawFigure(ctx, Q, C, pj, ball){
       seg(ctx,[[b[0]-0.01*b[3],b[1]+0.008*b[3]],[b[0]+0.01*b[3],b[1]-0.008*b[3]]],0.003*b[3],C.seam,"round"); };
     parts.push({d:dep, f:()=>{
       const sk=mixC(C.skin,C.skinD,t);
-      limb(ctx,el,wr,0.052,0.036,sk);
+      limb(ctx,el,wr,0.056,0.036,sk);
       disc(ctx,hd,0.03*hd[3],sk);
       limb(ctx,sh,el,0.066,0.052,mixC(C.shirt,C.shirtD,t));                                   // short sleeve to the elbow
       if(held) drawBallHeld();
@@ -285,8 +291,8 @@ function drawFigure(ctx, Q, C, pj, ball){
     }});
   }
   // neck and head
-  { const hu=Q.head_up, hfr=Q.head_front, hc=add3(Q.head,hu,-0.025), hp=pj(hc);
-    parts.push({d:hp[2], f:()=>{ limb(ctx,J.thorax_prox,pj(add3(hc,hu,-0.04)),0.06,0.055,C.skin); drawHead(ctx,hc,hfr,hu,0.062,pj,C); }}); }
+  { const hu=Q.head_up, hfr=Q.head_front, hc=add3(Q.head,hu,HEAD.drop), hp=pj(hc);
+    parts.push({d:hp[2], f:()=>{ limb(ctx,J.thorax_prox,pj(add3(hc,hu,-0.04)),0.072,0.066,C.skin); drawHead(ctx,hc,hfr,hu,HEAD.r,pj,C); }}); }
   parts.sort((a,b)=>b.d-a.d); for(const p of parts) p.f();
 }
 // head: skin sphere, hair over the back–top hemisphere, eyes / nose / mouth / ear placed on the sphere and drawn when
@@ -311,7 +317,7 @@ function drawHead(ctx, c3, fr, up, r, pj, C){
   // hair tuft at the crown, swinging on a spring
   const tuft=add3(c3,norm3(add3(up,fr,0.35)),r*0.95), lag=sub3(SPR.hair.get(tuft),tuft), l=len3(lag), k=l>1e-6?0.012*Math.tanh(l/0.012)/l:1;   // soft limit, no hard stop
   const t2=pj(add3(tuft,lag,k));
-  disc(ctx,t2,0.024*t2[3],C.hair);
+  disc(ctx,t2,HEAD.tuft*t2[3],C.hair);
 }
 
 // ---------- stage ----------
@@ -472,7 +478,7 @@ function advance(dt){   // fixed-step clock: loop time and the hair spring move 
   accum+=dt;
   while(accum>=HSTEP){ accum-=HSTEP; simT+=HSTEP; const prev=tau; tau+=HSTEP; if(tau>=CYCLE) tau-=CYCLE;
     if(prev<SWAP && tau>=SWAP) SPR.hair.x=null;   // the reset swaps the (invisible) finish for the set pose: the hair starts at rest
-    const Q=poseAt(shownTau(tau)); SPR.hair.step(add3(add3(Q.head,Q.head_up,-0.025),norm3(add3(Q.head_up,Q.head_front,0.35)),0.062*0.95),HSTEP); } }
+    const Q=poseAt(shownTau(tau)); SPR.hair.step(tuftAt(Q),HSTEP); } }
 if(reduce) setPlay(false);
 function frame(now){
   const dt=Math.min(0.1,(now-last)/1000); last=now;

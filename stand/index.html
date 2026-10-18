@@ -190,6 +190,10 @@ function kin(t){
   return {f:0, legs, tiltD:0, lean:a2r, a1, P0, P1, C, thr:0, head:th, arms, breath, th, sw, pad, A0};
 }
 // combine rigid targets with spring state; step=true advances the springs by h seconds
+// Body proportions (ANSUR II men; README "Proportions"). Leg length L = hip joint → ankle joint (thigh + shank = 1, ≈0.83 m).
+// trunk: scales the torso landmarks along the spine (C7 at 0.744 L above the hip joint); neck: C7 → tragion rise (0.13 L = 108 mm);
+// head: scales the drawn head (vertex–menton 0.28 L = 232 mm, head length 0.24 L).
+const BODY={trunk:0.94, neck:0.13, head:1.05};
 function compose(R, step, h){
   const mix=(kx,ky)=>(s,t)=>[t[0]+(s[0]-t[0])*kx, t[1]+(s[1]-t[1])*(ky??kx)];
   const cs = step? SPR.chest.step(R.C,h) : SPR.chest.get(R.C);
@@ -203,7 +207,7 @@ function compose(R, step, h){
   const B0=R.P0, B1=add(R.P0,U(R.a1),0.24), B3=add(C,U(a2),0.08), B2=add(C,U(a2),-0.18);
   const bz=s=>{ const m=1-s; return [m*m*m*B0[0]+3*m*m*s*B1[0]+3*m*s*s*B2[0]+s*s*s*B3[0], m*m*m*B0[1]+3*m*m*s*B1[1]+3*m*s*s*B2[1]+s*s*s*B3[1]]; };
   const bt=s=>{ const m=1-s; const x=3*m*m*(B1[0]-B0[0])+6*m*s*(B2[0]-B1[0])+3*s*s*(B3[0]-B2[0]), y=3*m*m*(B1[1]-B0[1])+6*m*s*(B2[1]-B1[1])+3*s*s*(B3[1]-B2[1]), l=Math.hypot(x,y)||1; return [x/l,y/l]; };
-  const T=(r,u)=>{ const s=Math.min(1,Math.max(0,u/0.66)), tg=bt(s); let p=bz(s); if(u>0.66) p=add(p,tg,u-0.66);
+  const T=(r,u)=>{ u*=BODY.trunk; const s=Math.min(1,Math.max(0,u/0.66)), tg=bt(s); let p=bz(s); if(u>0.66) p=add(p,tg,u-0.66);
     const n=[tg[1],-tg[0]], th=(1+(wsc-1)*ss(s*1.6))*(1+(r>0?0.12:0.05)*Math.abs(tw));
     return add(p,n,r*th); };
   // arms; the shoulder girdle protracts/retracts with the swing and rides its own spring
@@ -212,7 +216,7 @@ function compose(R, step, h){
     const ua0=step? SPR.ua[i].step([A.ua],h)[0] : SPR.ua[i].get([A.ua])[0];
     const fl0=step? SPR.fl[i].step([A.fl],h)[0] : SPR.fl[i].get([A.fl])[0];
     const ua=A.ua+(ua0-A.ua)*0.6*EX, fl=A.fl+(fl0-A.fl)*0.8*EX, fa=ua+fl;   // data already holds the real lag; springs add only cartoon drag
-    const base=add(T(-0.04 + side*0.14*tw, 0.61),[0,0.004*R.breath]);
+    const base=add(T(-0.04 + side*0.14*tw, 0.62),[0,0.004*R.breath]);
     const pro=A.shx*(1+EX), ele=A.shy*(1+EX);                // recorded shoulder-girdle motion
     const tgt=add(add(base,FW(a2),pro),U(a2),ele);
     const sp=step? SPR.sh[i].step(tgt,h) : SPR.sh[i].get(tgt);
@@ -222,21 +226,20 @@ function compose(R, step, h){
   // thighs push the shirt hem: front lifts over the forward thigh, back over the trailing one
   const thA=R.legs.map(L=>Math.atan2(L.knee[0]-L.hip[0], L.hip[1]-L.knee[1]));
   const pushF=0.07*Math.max(0,Math.sin(Math.max(...thA)))*(0.5+EX), pushB=0.045*Math.max(0,-Math.sin(Math.min(...thA)))*(0.5+EX);
-  // ANSUR II (4,082 men) in leg-length units above the hip joint: C7 +0.79, ear (tragion) +0.93.
-  // Craniovertebral angle 52° (healthy 50 ± 5°) puts the ear 0.11 in front of C7.
-  const neck=T(-0.11,0.76);                                   // C7 (back of the neck base)
+  // ANSUR II (4,082 men) in leg-length units above the hip joint: C7 +0.744, ear (tragion) +0.874 (L = trochanterion − lateral malleolus).
+    const neck=T(-0.11,0.76);                                   // C7 (back of the neck base)
   const CVA=60*D2R,   // upright end of the healthy range; matches the user's side-view reference
-    earR=[neck[0]+0.17/Math.tan(CVA), neck[1]+0.17];   // front-of-neck length ≈0.11 (ANSUR menton − suprasternale)
-  const headR=[earR[0]+0.035, earR[1]+0.005];                  // head centre sits just in front of/above the ear
+    earR=[neck[0]+BODY.neck/Math.tan(CVA), neck[1]+BODY.neck];   // C7 → tragion 0.13 L (ANSUR II); chin → sternal notch ≈0.10 L
+  const headR=[earR[0]+0.035*BODY.head, earR[1]+0.005*BODY.head];                  // head centre sits just in front of/above the ear
   const hs = step? SPR.head.step(headR,h) : SPR.head.get(headR);
   let head = mix(0.05*EX, 0.15*EX)(hs,headR);   // the neck is stiff: the head follows the recorded trunk almost rigidly
   const nod = Math.max(-0.02,Math.min(0.02,-(head[1]-headR[1])*3));                   // chin dips as the head catches the body's fall
   const headAng=-R.head + nod*EX;
   { // the head nods about the top of the neck (atlas), and the cervical spine takes part of a downward look
-    const down=Math.max(0,-headAng), piv=[head[0]-0.01+0.11*Math.sin(down*0.55), head[1]-0.09-0.03*(1-Math.cos(down*0.55))];
-    head=[piv[0]+0.01*Math.cos(headAng)-0.09*Math.sin(headAng), piv[1]+0.01*Math.sin(headAng)+0.09*Math.cos(headAng)]; }
-  const piv=add(head,[ -0.13*Math.sin(headAng), 0.13*Math.cos(headAng)]);
-  const tipR=add(piv, [0.1*Math.cos(headAng)-0.14*Math.sin(headAng), 0.1*Math.sin(headAng)+0.14*Math.cos(headAng)]);
+    const down=Math.max(0,-headAng), hk=BODY.head, piv=[head[0]-0.01*hk+0.11*Math.sin(down*0.55), head[1]-0.09*hk-0.03*(1-Math.cos(down*0.55))];
+    head=[piv[0]+(0.01*Math.cos(headAng)-0.09*Math.sin(headAng))*hk, piv[1]+(0.01*Math.sin(headAng)+0.09*Math.cos(headAng))*hk]; }
+  const piv=add(head,[ -0.125*BODY.head*Math.sin(headAng), 0.125*BODY.head*Math.cos(headAng)]);   // quiff root
+  const tipR=add(piv, [(0.1*Math.cos(headAng)-0.04*Math.sin(headAng))*BODY.head, (0.1*Math.sin(headAng)+0.04*Math.cos(headAng))*BODY.head]);
   const tp = step? SPR.hair.step(tipR,h) : SPR.hair.get(tipR);
   const v1=sub(tipR,piv), v2=sub(tp,piv);
   const hair=Math.max(-0.3,Math.min(0.3,(Math.atan2(v2[1],v2[0])-Math.atan2(v1[1],v1[0]))*(0.7+0.7*EX)));
@@ -294,9 +297,10 @@ function drawArm(ctx, A, P, C, far){
   const skin=far?C.skinD:C.skin, shirt=far?C.shirtD:C.shirt;
   disc(ctx,A.sh,0.07,skin); taper(ctx,A.sh,A.el,0.14,0.1,skin); disc(ctx,A.el,0.049,skin); taper(ctx,A.el,A.wr,0.1,0.072,skin);   // ANSUR girths: upper arm ≈0.13, forearm ≈0.11, wrist ≈0.07
   const fd=[Math.sin(A.fa),-Math.cos(A.fa)];
-  disc(ctx,[A.wr[0]+fd[0]*0.055,A.wr[1]+fd[1]*0.055],0.06,skin);
-  if(!far){ const k=[A.wr[0]+fd[0]*0.03-Math.cos(A.fa)*0.02, A.wr[1]+fd[1]*0.03-Math.sin(A.fa)*0.02];
-    seg(ctx,[k,[k[0]+fd[0]*0.025,k[1]+fd[1]*0.025]],0.008,C.skinDD,"round"); }
+  { const hcx=[A.wr[0]+fd[0]*0.068,A.wr[1]+fd[1]*0.068];   // relaxed hand along the forearm: wrist → fingertip 0.138 L (ANSUR hand length 0.23 L, fingers half-curled)
+    ctx.beginPath(); ctx.ellipse(hcx[0],hcx[1],0.07,0.054,A.fa-Math.PI/2,0,Math.PI*2); ctx.fillStyle=skin; ctx.fill(); }
+  if(!far){ const k=[A.wr[0]+fd[0]*0.035-Math.cos(A.fa)*0.025, A.wr[1]+fd[1]*0.035-Math.sin(A.fa)*0.025];
+    seg(ctx,[k,[k[0]+fd[0]*0.04,k[1]+fd[1]*0.04]],0.008,C.skinDD,"round"); }
   // sleeve
   const ax=[Math.sin(A.ua),-Math.cos(A.ua)], n=[Math.cos(A.ua),Math.sin(A.ua)];
   const S=A.sh, p=(u,v)=>[S[0]+ax[0]*u+n[0]*v, S[1]+ax[1]*u+n[1]*v];
@@ -315,12 +319,12 @@ function drawFigure(ctx, Q, C){
   const T=Q.T, hm=Q.hem, sd=Q.shD, w=u=>ss((u-0.4)/0.2)*(1-ss((u-0.64)/0.08));
   // scapula glides over the back of the ribcage: the back follows the shoulder girdle a little, the sternum/chest front does not
   const P=(r,u)=>{ const p=T(r,u), k=w(u), kb=k*Math.max(0,Math.min(1,-r/0.12))*0.6; return [p[0]+sd[0]*kb, p[1]+sd[1]*kb*0.5]; };
-  const front=[[0.0,0.145+Q.pushF],[0.1,0.142+Q.pushF*0.35],[0.25,0.14],[0.42,0.146],[0.53,0.144],[0.62,0.122],[0.67,0.092]];   // lean build in a fitted tee (≈0.135 H deep), tapering to the neck
+  const front=[[0.0,0.145+Q.pushF],[0.1,0.142+Q.pushF*0.35],[0.25,0.14],[0.42,0.146],[0.53,0.144],[0.6,0.124],[0.645,0.095]];   // lean build in a fitted tee (≈0.135 H deep), tapering to the neck
   const back=[[0.756,-0.118],[0.72,-0.142],[0.66,-0.158],[0.56,-0.165],[0.42,-0.16],[0.3,-0.148],[0.18,-0.142],[0.06,-0.155],[0.0,-0.165-Q.pushB]];
   const body=[];
   body.push(P(-0.165-0.4*Math.abs(hm)-Q.pushB, hm*1.5));
   for(const [u,rr] of front) body.push(P(rr, u + (u<0.05? hm*0.7+Q.pushF*0.5 : 0)));
-  body.push(P(0.075,0.69)); body.push(P(-0.02,0.732));   // front neckline at the sternal notch, collar rising to C7
+  body.push(P(0.075,0.66)); body.push(P(-0.02,0.718));   // front neckline at the sternal notch, collar rising to C7
   for(const [u,rr] of back) body.push(P(rr, u + (u<0.05? hm*1.2 : 0)));
   smooth(ctx,body); ctx.fillStyle=C.shirt; ctx.fill();
   ctx.save(); smooth(ctx,body); ctx.clip();
@@ -330,15 +334,15 @@ function drawFigure(ctx, Q, C){
   if(Q.pushF>0.01){ const a=P(0.12,0.02), b=P(0.06,0.14); seg(ctx,[a,b],0.012,C.shirtD,"round"); }
   ctx.restore();
   // neck: tapered column from the base of the neck (behind the collar) forward-up to under the skull and jaw
-  { const ha=Q.headAng, Hd=Q.head, hp=(x,y)=>[Hd[0]+x*Math.cos(ha)-y*Math.sin(ha), Hd[1]+x*Math.sin(ha)+y*Math.cos(ha)];
+  { const ha=Q.headAng, Hd=Q.head, hk=BODY.head, hp=(x,y)=>[Hd[0]+(x*Math.cos(ha)-y*Math.sin(ha))*hk, Hd[1]+(x*Math.sin(ha)+y*Math.cos(ha))*hk];
     // inside back of the collar (fabric seen behind the neck)
-    smooth(ctx,[P(-0.125,0.76),P(-0.07,0.775),P(0.02,0.735),P(-0.03,0.725)]); ctx.fillStyle=C.shirtDD; ctx.fill();
-    const nb=P(-0.115,0.752), nf=P(0.07,0.692), tb=hp(-0.075,-0.045), tf=hp(0.035,-0.105);   // thick, near-vertical column (reference: depth ≈0.2 incl. trapezius)   // neck depth ≈0.17 at the base (ANSUR neck base circumference)
-    smooth(ctx,[nb,lerp(nb,tb,0.5),tb,hp(-0.005,-0.1),tf,lerp(tf,nf,0.5),nf,P(-0.01,0.72)]); ctx.fillStyle=C.skin; ctx.fill();
+    smooth(ctx,[P(-0.125,0.76),P(-0.07,0.775),P(0.02,0.712),P(-0.03,0.705)]); ctx.fillStyle=C.shirtDD; ctx.fill();
+    const nb=P(-0.115,0.752), nf=P(0.07,0.662), tb=hp(-0.062,-0.045), tf=hp(0.035,-0.105);   // thick, near-vertical column (reference: depth ≈0.2 incl. trapezius)   // neck depth ≈0.17 at the base, ≈0.16 mid-neck (ANSUR II neck circumferences / π)
+    smooth(ctx,[nb,lerp(nb,tb,0.5),tb,hp(-0.005,-0.1),tf,lerp(tf,nf,0.5),nf,P(-0.01,0.7)]); ctx.fillStyle=C.skin; ctx.fill();
     // soft shade under the jaw
     smooth(ctx,[hp(-0.015,-0.098),hp(0.035,-0.108),hp(0.02,-0.122),hp(-0.01,-0.118)]); ctx.fillStyle=C.skinD; ctx.fill();
     // rib collar: a band running from high at the back of the neck down to the sternal notch
-    const c0=P(-0.125,0.76), cm=P(-0.02,0.738), c1=P(0.078,0.69);
+    const c0=P(-0.125,0.76), cm=P(-0.02,0.722), c1=P(0.078,0.66);
     ctx.beginPath(); ctx.moveTo(c0[0],c0[1]); ctx.quadraticCurveTo(cm[0],cm[1],c1[0],c1[1]);
     ctx.lineWidth=0.026; ctx.strokeStyle=C.shirt; ctx.lineCap="round"; ctx.stroke();
     ctx.lineWidth=0.007; ctx.strokeStyle=C.shirtDD; ctx.stroke();
@@ -347,7 +351,7 @@ function drawFigure(ctx, Q, C){
   drawArm(ctx, Q.arms[0], Q, C, false);
 }
 function drawHead(ctx,Q,C){
-  ctx.save(); ctx.translate(Q.head[0],Q.head[1]); ctx.rotate(Q.headAng);
+  ctx.save(); ctx.translate(Q.head[0],Q.head[1]); ctx.rotate(Q.headAng); ctx.scale(BODY.head,BODY.head);
   ctx.beginPath(); ctx.ellipse(0,0.005,0.112,0.135,0,0,Math.PI*2); ctx.fillStyle=C.skin; ctx.fill();
   ctx.beginPath(); ctx.ellipse(0.035,-0.06,0.08,0.065,0.2,0,Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.ellipse(-0.035,-0.005,0.025,0.033,0,0,Math.PI*2); ctx.fillStyle=C.skinD; ctx.fill();
@@ -367,10 +371,10 @@ function drawHead(ctx,Q,C){
   { const m=hap-sad, c0=[0.066,-0.067+0.014*m], c1=[0.1,-0.066];
     ctx.beginPath(); ctx.moveTo(c0[0],c0[1]); ctx.quadraticCurveTo(0.083,-0.069-0.008*m,c1[0],c1[1]); ctx.lineWidth=0.007; ctx.strokeStyle=C.face; ctx.lineCap="round"; ctx.stroke(); }
   // hair cap + quiff (quiff swings with vertical acceleration)
-  smooth(ctx,[[0.11,0.06],[0.09,0.13],[0.0,0.16],[-0.1,0.13],[-0.128,0.05],[-0.105,0.0],[-0.07,0.02],[-0.05,0.055],[0.04,0.07]]);   // hairline above the nape
+  smooth(ctx,[[0.11,0.06],[0.09,0.135],[0,0.168],[-0.1,0.135],[-0.128,0.05],[-0.105,0],[-0.07,0.02],[-0.05,0.055],[0.04,0.07]]);   // hairline above the nape; ≈2 cm of volume over the crown
   ctx.fillStyle=C.hair; ctx.fill();
-  ctx.save(); ctx.translate(0.0,0.13); ctx.rotate(Q.hair);
-  smooth(ctx,[[-0.08,0.0],[-0.02,0.11],[0.09,0.16],[0.15,0.1],[0.13,0.03],[0.07,-0.02]]); ctx.fill();
+  ctx.save(); ctx.translate(0.0,0.125); ctx.rotate(Q.hair);
+  smooth(ctx,[[-0.07,0],[-0.02,0.04],[0.05,0.065],[0.115,0.055],[0.13,0.02],[0.11,-0.025],[0.06,-0.04]]); ctx.fill();   // short quiff: top ≈4 cm above the skull
   ctx.restore();
   ctx.restore();
 }
@@ -403,17 +407,17 @@ function resize(){
   S=Math.min(H*0.255, W*0.27);
   traceBox.classList.remove("off"); traceBox.style.top="";
   const hb=document.querySelector("header").getBoundingClientRect().bottom;
-  if(W<=720){   // narrow: stabilogram strip under the title, figure (head top ≈2.45 leg lengths, shadow 0.3 below) in the rest
-    const top=hb+6, tb=top+traceBox.offsetHeight+14, fit=Math.min((railTop-tb)/2.75, (H*0.74-tb)/2.45);   // gy = min(0.74 H, rail − 0.3 S)
+  if(W<=720){   // narrow: stabilogram strip under the title, figure (hair top ≈2.3 leg lengths with the ×10 sway, shadow 0.3 below) in the rest
+    const top=hb+6, tb=top+traceBox.offsetHeight+14, fit=Math.min((railTop-tb)/2.6, (H*0.74-tb)/2.3);   // gy = min(0.74 H, rail − 0.3 S)
     if(fit>=S){ traceBox.style.top=top+"px"; S=Math.min(H*0.255, W*0.5, fit); }
     else traceBox.classList.add("off"); }
   gy=Math.min(H*0.74, railTop-0.3*S);
   // keep the head clear of the title text: stand to the right of it, or (no room) below it
   const tr=Math.max(0,...[...document.querySelectorAll("header h1, header p:not(.nav), header p.nav > *")].map(e=>{ const g=document.createRange(); g.selectNodeContents(e); const q=g.getBoundingClientRect(); return q.width? q.right : 0; }));
   cx=W*(W>720?0.42:0.5);
-  if(gy-2.45*S<hb && tr+12>cx-0.4*S){   // head (with the hair) reaches ≈0.4 S behind cx at ×10
+  if(gy-2.3*S<hb && tr+12>cx-0.4*S){   // head (with the hair) reaches ≈0.4 S behind cx at ×10
     if(tr+12+0.4*S<=W-0.7*S) cx=tr+12+0.4*S;
-    else{ S=Math.min(S,(railTop-hb-10)/2.75,(H*0.74-hb-10)/2.45); gy=Math.min(H*0.74, railTop-0.3*S); } }
+    else{ S=Math.min(S,(railTop-hb-10)/2.6,(H*0.74-hb-10)/2.3); gy=Math.min(H*0.74, railTop-0.3*S); } }
   updateLight();
 }
 addEventListener("resize",resize); resize();
