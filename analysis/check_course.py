@@ -8,12 +8,16 @@ that the lap boundary cuts in two is put back together (the lap repeats exactly)
   swing     – smallest clearance of a swinging sole over the ground (not counting hurdles)
   hurdle    – for every crossing, the lead and trail sole's smallest clearance over the bar, played back, against the
               modelled clearance (COURSE.obstacle); worst |played − model|
+  pop       – largest frame-to-frame change of either ankle's velocity at 240 Hz (second difference of its drawn
+              position, L): a foot or body that jumps between frames shows here; smooth motion ≈ 0.003–0.01 L
+  knee      – smallest knee flexion of the drawn legs (degrees); below 0 the knee bends backwards
+  cross     – shortest hurdle crossing step (trailing ball → bar → leading heel) as a fraction of the measured one
   gaps      – worst difference between a designed level gap and the built one (informative, not a pass criterion)
   seam      – the largest frame-to-frame change of the ankles, pelvis and camera across the lap seam, over the largest
               anywhere else in the lap (≤ 1.5 means the loop has no visible jump)
 Then: no page errors, and at 390 px wide the page has no horizontal scroll in course mode.
 Values in leg lengths (L ≈ 0.84 m). Fails (exit 1) if drift > 0.001 L, gap > 0.002 L, floor < -0.002 L,
-swing < 0, |hurdle| > 0.002 L or seam > 1.5.
+swing < 0, |hurdle| > 0.002 L, seam > 1.5, pop > 0.015 L, knee < 0° or cross < 0.85.
 Usage: python check_course.py     (CHROMIUM=/path/to/chrome to use a local build)
 """
 import os, sys, json, pathlib
@@ -23,8 +27,10 @@ KEYS = ['course:stairs', 'course:ramps', 'course:hurdles', 'course:mixed', 'cour
 JS = """(key)=>{ setPlay(false); setMode('course',true); setCond(key,true); advance(0.5);
   const C=CRS, T=C.T, SOLE=[]; for(let j=0;j<=34;j++) SOLE.push([-0.085+0.34*j/34,-0.07]); SOLE.push([0.262,-0.06]);
   const H=1/240, n=Math.ceil((C.TL+0.05)/H), stOf=(i,τ)=>cN(T.leg[i].st,τ);
-  let slip=0, drift=0, gap=0, floor=0, swing=9; const prev=[null,null], hur={};
+  let slip=0, drift=0, gap=0, floor=0, swing=9, knee=180; const prev=[null,null], hur={}, AK=[[],[]];
   for(let s=0;s<n;s++){ advance(H); const τ=phase, t=travel(), l=lift();
+    { const R=kin(τ); for(const i of [0,1]){ const L=R.legs[i]; AK[i].push([L.ankle[0]+t,L.ankle[1]+l]);
+        const a=Math.atan2(L.knee[0]-L.hip[0],L.hip[1]-L.knee[1]), b=Math.atan2(L.ankle[0]-L.knee[0],L.knee[1]-L.ankle[1]); knee=Math.min(knee,(a-b)*180/Math.PI); } }
     for(const i of [0,1]){ const L=legAt(i,τ);
       const P=SOLE.map(v=>{ const p=G.shoePt(L.A,L.pitch,v,L.fy,L.k); return [p[0]+t,p[1]+l]; });
       const cg=P.map(p=>p[1]-C.terrNoH(p[0])), ch=P.map(p=>p[1]-C.terr(p[0]));
@@ -56,7 +62,10 @@ JS = """(key)=>{ setPlay(false); setMode('course',true); setCond(key,true); adva
     for(let j=1;j<NS-1;j++){ mx=Math.max(mx,Math.abs(v(j+1)-2*v(j)+v(j-1))); }
     const sj=Math.max(...[NS-2,NS-1,NS].map(j=>Math.abs(v(j+1)-2*v(j)+v(j-1))));
     seam=Math.max(seam, mx>1e-9? sj/mx : 0); }
-  return {lap_m:C.XL*STAIRS["stair_ascent_6"].leg_m, steps:C.N, lap_s:C.TL, slip_L_per_s:slip, drift_L:drift, gap_L:gap, floor_L:floor, swing_min_L:swing,
+  let pop=0; for(const A of AK) for(let s=1;s<A.length-1;s++) pop=Math.max(pop,Math.hypot(A[s+1][0]-2*A[s][0]+A[s-1][0],A[s+1][1]-2*A[s][1]+A[s-1][1]));
+  const OB=COURSE.obstacle, want=OB.trail_ball_before+OB.thickness+OB.lead_heel_after;
+  const cross=Math.min(1,...C.HUR().map(h=>(want-h.errL)/want));
+  return {pop_L:pop, knee_min_deg:knee, cross, lap_m:C.XL*STAIRS["stair_ascent_6"].leg_m, steps:C.N, lap_s:C.TL, slip_L_per_s:slip, drift_L:drift, gap_L:gap, floor_L:floor, swing_min_L:swing,
     hurdle_err_L:herr, crossings:hl, gaps_worst_L:Math.max(0,...C.fit.gapErr.map(Math.abs)), seam_ratio:seam}; }"""
 bad = []
 with sync_playwright() as p:
@@ -68,7 +77,8 @@ with sync_playwright() as p:
         cr = r.pop('crossings')
         print(f'{k:16s}', json.dumps({q: (round(v, 4) if isinstance(v, float) else v) for q, v in r.items()}))
         for c in cr: print(f'{"":16s}   hurdle {c[0]:.1f} L  {c[1]:5s} clearance {c[2]:.4f} L  (model {c[3]:.4f})')
-        if r['drift_L'] > 0.001 or r['gap_L'] > 0.002 or r['floor_L'] < -0.002 or r['swing_min_L'] < 0 or r['hurdle_err_L'] > 0.002 or r['seam_ratio'] > 1.5:
+        if r['drift_L'] > 0.001 or r['gap_L'] > 0.002 or r['floor_L'] < -0.002 or r['swing_min_L'] < 0 or r['hurdle_err_L'] > 0.002 or r['seam_ratio'] > 1.5 \
+                or r['pop_L'] > 0.015 or r['knee_min_deg'] < 0 or r['cross'] < 0.85:
             bad.append(k)
     # phone width: course mode, nothing wider than the screen
     m = b.new_page(viewport={'width': 390, 'height': 844}, device_scale_factor=2)
