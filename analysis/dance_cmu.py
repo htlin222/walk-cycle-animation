@@ -2,7 +2,7 @@
 
 Input : CMU dance clips in analysis/bvh/ (cgspeed BVH conversion, see README); time windows of steady dancing in STYLES
           charleston  93_03, 93_04, 93_05                subject 93 ("charleston_01", "charleston side by side female / male")
-          salsa       60_02, 60_03, 60_04, 61_01, 61_02  subjects 60 and 61 (a salsa couple)
+          salsa       60_02, 60_03, 60_04, 61_01, 61_02  subjects 60 and 61 (a salsa couple; the pose uses 60 only, see POSE)
           indian      94_08                              subject 94 (Indian dance; right-foot half and left-foot half)
 Output: analysis/data/dance_cmu.json  (python dance_cmu.py --embed also writes it into dance/index.html as const DANCE)
 
@@ -30,6 +30,11 @@ STYLES = {
     'salsa': [('60_02', 4, 13), ('60_03', 14, 25), ('60_04', 14, 28), ('61_01', 7, 19), ('61_02', 17, 28)],
     'indian': [('94_08', 1.2, 10.5), ('94_08', 10.8, 21.3)],
 }
+# Which measured stretches shape the pose (all of them set the tempo). Salsa: the two partners dance different steps
+# (subject 60, the leader, a forward-back basic, ankle excursion 0.7-1.1 L fore-aft; subject 61, the follower, mostly
+# side to side, 1.0-1.7 L laterally), so averaging both cancels the steps out (0.5 L each way, 4 touchdowns a cycle).
+# The pose uses the leader only, and of his 10 aligned cycles the 5 closest to their average (pose r 0.85-0.89).
+POSE = {'salsa': dict(clips=('60_',), top=5)}
 VIEW = np.radians(30)          # camera yaw away from profile, toward the dancer's front
 SPB = 40                       # samples per beat in the stored cycle
 MIN_R = 0.25                   # a segment must repeat at least this well (pose autocorrelation) to be used
@@ -194,7 +199,7 @@ def four(x, K):
     X = np.fft.rfft(x, axis=0); X[K + 1:] = 0; return np.fft.irfft(X, x.shape[0], axis=0)
 
 
-def build(name, segs, k):
+def build(name, segs, k, top=None):
     T = float(np.mean([s['T'] for s in segs]))
     N = SPB * k; M = N // 4; I = segs[0]['I']; feat = [I[s + n] for s in SIDES for n in ('Foot', 'ToeBase', 'Hand', 'ForeArm', 'Leg')] + [I['Hips'], I['Head']]
     core = slice(M, M + N + 1)
@@ -217,6 +222,13 @@ def build(name, segs, k):
                     if r > best[0]: best = (r, sh, mir)
             s['shift'], s['mirror'], s['r'] = best[1], best[2], best[0]; s['cyc'] = cycles(s, best[1], best[2]); allc += s['cyc']
         tmpl = np.nanmean(allc, 0)
+    if top and top < len(allc):                          # keep only the cycles closest to the aligned average (crisper steps)
+        r = [corr(c[core][:, feat], tmpl[core][:, feat]) for c in allc]; keep = set(np.argsort(r)[::-1][:top].tolist())
+        i = 0
+        for s in segs: n = len(s['cyc']); s['kept'] = [j for j in range(n) if i + j in keep]; i += n
+        allc = [c for j, c in enumerate(allc) if j in keep]; tmpl = np.nanmean(allc, 0)
+    else:
+        for s in segs: s['kept'] = list(range(len(s['cyc'])))
     # close the loop with the recording's own continuation: around the seam, cross-fade from "the end of the cycle running on"
     # to "the start of the cycle, as it was approached", both averaged over the same cycles (smoothstep over half a cycle).
     A = tmpl[M:M + N].copy()
@@ -304,7 +316,7 @@ def page_data(name, B, segs):
                cycles=B['n_cycles'], spread_L=round(B['spread'], 4),
                touchdown_hz=round(float(np.sum([s['n_td'] for s in segs]) / np.sum([s['t1'] - s['t0'] for s in segs])), 2),
                clips=[dict(clip=s['clip'], t=[s['t0'], s['t1']], cycle_s=round(s['Tc'], 3), pose_r=round(s['rc'], 2), bpm=round(60 / s['T'], 1),
-                           touchdown_hz=round(s['td_hz'], 2), shift=s['shift'], mirror=s['mirror'], r=round(s['r'], 3), cycles=len(s['cyc'])) for s in segs])
+                           touchdown_hz=round(s['td_hz'], 2), shift=s['shift'], mirror=s['mirror'], r=round(s['r'], 3), cycles=len(s['cyc']), kept=len(s['kept'])) for s in segs])
     pel = g('Hips') + [0, yo]
     legs = []; stretch = 1
     for s in SIDES:
@@ -359,7 +371,10 @@ if __name__ == '__main__':
             print(f"{name:10s} {s['clip']} {s['t0']:5.1f}-{s['t1']:5.1f}s  cycle {s['Tc']:.3f} s (pose r={s['rc']:.2f})  beat {s['T']*1000:4.0f} ms = {60/s['T']:5.1f} BPM  "
                   f"touchdowns {s['n_td']:3d} ({s['td_hz']:.2f} Hz)")
         print('  pelvis bounce by harmonic of the cycle', np.round(amp, 2), '-> beats per cycle', k)
-        B = build(name, segs, k); res[name] = page_data(name, B, segs)
+        sel = POSE.get(name, {}); psegs = [s for s in segs if s['clip'].startswith(sel.get('clips', ('',)))]
+        B = build(name, psegs, k, sel.get('top')); res[name] = page_data(name, B, psegs)
+        res[name]['tempo_only'] = [dict(clip=s['clip'], t=[s['t0'], s['t1']], cycle_s=round(s['Tc'], 3), bpm=round(60 / s['T'], 1),
+                                        touchdown_hz=round(s['td_hz'], 2)) for s in segs if s not in psegs]
         r = res[name]
         print(f"  => {r['bpm']} BPM, {r['beats']} beats/cycle ({r['cycle_s']} s), {r['cycles']} cycles, spread {r['spread_L']} L, knee stretch {r['knee_stretch_pct']} %, stats {r['stats']}")
         for c in r['clips']: print('    ', c)
