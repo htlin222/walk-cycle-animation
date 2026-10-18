@@ -10,6 +10,8 @@ The section below can be pasted into the root README after "## Run cycle". The l
 
 ## Pitch
 
+[![Animated fastball, 3/4 view: set position and stride at 0.5×, foot contact to the finish at 0.1×](assets/pitch-cycle.gif)](https://htlin222.github.io/walk-cycle-animation/pitch/)
+
 `pitch/index.html` throws a fastball from the averaged 3D motion of 67 pitchers. The phases are set position → leg lift → stride → foot plant → arm cocking → acceleration → release → follow-through → reset. The ball leaves the hand at the measured speed. The page has slow motion, a timeline, and ◀ ▶ buttons that step from one event to the next.
 
 | Layer | Source | How it is used |
@@ -20,7 +22,7 @@ The section below can be pasted into the root README after "## Run cycle". The l
 | Curves panel | OBP `joint_velos.csv`, `joint_angles.csv` | Pelvis and trunk rotation velocity, shoulder external rotation and elbow flexion, averaged on the same time base. |
 | Ball | Radar speed per pitch (OBP metadata) | Leaves the fingers at release at the mean speed. It is aimed at the middle of the strike zone, with gravity only (see below). |
 | Mound | Measured landing height | The turf is flat for 6 in in front of the rubber, then slopes down to where the lead foot lands: 10 cm lower, a 7.3 % slope. The rule-book slope is 1 in/ft (8.3 %). |
-| Hair | Damped spring, 240 Hz | The only simulated motion. |
+| Hair | Damped spring, 240 Hz, softly limited | The only simulated motion. |
 
 ### Measured pitch (OBP, this repo's analysis)
 
@@ -56,7 +58,7 @@ The kinematic sequence runs proximal to distal: pelvis, then trunk, then the arm
 - **3D, projected.** Pelvis and trunk each turn more than 100° toward home, and the shoulder lays back to 168°, mostly behind the body. A side-view joint-angle rig cannot show either. The page projects the averaged 3D joint centres through a perspective camera instead. Three views are available: 側面 side (from the third-base side), 斜前 3/4 front and 捕手 catcher. The trunk is drawn as rings around the pelvis and thorax axes, so hip–shoulder separation shows as a twist. Body parts are depth-sorted. The cast shadow is the same figure dropped onto the mound along a light direction.
 - **Averaging without shrinking.** Averaging joint positions directly makes a forearm shorter wherever pitchers' arms point different ways, as at layback. Chains are therefore rebuilt from averaged unit directions times averaged lengths. Feet and pelvis keep averaged positions, because those are what must stay planted.
 - **Planted feet stay planted.** The pivot foot's ball of the foot is held still from leg-lift onset until the foot starts to drag, 196 ms before release. Before then the averaged foot creeps by at most 2 cm; afterwards the toe drags toward home, as in the data. The lead heel is held from foot plant to the end, faded in over the 21 ms from foot contact (≤ 1.7 cm correction). [`analysis/check_pitch.py`](../analysis/check_pitch.py) measures 0.000 mm movement for both held points and soles at most 0.2 mm below the mound. After release the lead foot turns about the heel: its ball moves 10 mm by release and 38 mm by the end.
-- **Set position and reset are not data.** OBP recordings start at most a few hundred ms before the leg lift, so the set position is the pose at leg-lift onset, held for 1.2 s. The data end 200 ms after release. The finish is held, then fades back to the set position.
+- **Set position and reset are not data.** OBP recordings start at most a few hundred ms before the leg lift, so the set position is the pose at leg-lift onset, held for 1.2 s with one slow breath (the upper body rises at most 4 mm; feet and pelvis stay still, and the pose is the data pose at both ends of the hold). The data end 200 ms after release. The finish is held, then fades back to the set position. The hair spring restarts at rest when the faded-out finish is swapped for the set pose, so it does not swing across the loop seam.
 - **The ball's flight is not measured.** The hand itself moves at 24 m/s at release, 17° downward. The ball leaves the fingertips at the 37.9 m/s radar speed, aimed down the line to the middle of the strike zone (launch −0.3°, 0.43 s to the plate). Gravity acts on it; the backspin lift of a four-seamer is left out.
 
 Controls: play / pause (space), ◀ ▶ previous / next event (arrow keys), playback speed (0.25× by default; real time is 1×), timeline, camera 側面 / 斜前 / 捕手, skeleton overlay with the throwing-hand path, curves panel. The phase chips read 預備 Set → 抬腿 Leg lift → 跨步 Stride → 踏地 Foot plant → 舉臂 Arm cocking → 加速 Acceleration → 出手 Release → 跟進 Follow-through → 重置 Reset.
@@ -69,7 +71,8 @@ Controls: play / pause (space), ◀ ▶ previous / next event (arrow keys), play
 
 ```
   pitch_obp.py        OBP pitching (--download fetches and checks it, ≈ 310 MB zipped; needs `pip install c3d`) → data/normative_pitch_obp.json; --embed writes it into pitch/index.html
-  check_pitch.py      held-foot / mound / event-timing / ball checks of pitch/index.html in headless Chromium
+  check_pitch.py      held-foot / mound / event-timing / ball / loop-seam / hair checks of pitch/index.html in headless Chromium
+  render_pitch.py     → assets/pitch-cycle.gif, assets/pitch-og.png
 ```
 
 Pitching pipeline: `python analysis/pitch_obp.py --download --embed`, then `python analysis/check_pitch.py`. Raw files go to `analysis/obp/`, which is git-ignored.

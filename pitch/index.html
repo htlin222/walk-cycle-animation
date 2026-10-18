@@ -12,9 +12,14 @@
 <meta property="og:title" content="Pitch Study">
 <meta property="og:description" content="Evidence-based baseball fastball in HTML Canvas: 3D joint centres from the Driveline OpenBiomechanics Project (67 pitchers, 194 fastballs), averaged between key events. Measured event timing, release speed, no foot slip.">
 <meta property="og:url" content="https://htlin222.github.io/walk-cycle-animation/pitch/">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://htlin222.github.io/walk-cycle-animation/assets/pitch-og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A flat-style pitcher in the 3/4 front view just before releasing a fastball, throwing arm high, stride leg planted on the mound, with rotation-velocity and shoulder-rotation curves.">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pitch Study">
 <meta name="twitter:description" content="Evidence-based baseball fastball in HTML Canvas, from the Driveline OpenBiomechanics Project (CC BY-NC-SA 4.0).">
+<meta name="twitter:image" content="https://htlin222.github.io/walk-cycle-animation/assets/pitch-og.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"CreativeWork","name":"Pitch Study","description":"Evidence-based baseball fastball animation in HTML Canvas from the Driveline OpenBiomechanics Project: averaged 3D joint centres, measured event timing and release speed.","url":"https://htlin222.github.io/walk-cycle-animation/pitch/","author":{"@type":"Person","name":"htlin222"},"license":"https://creativecommons.org/licenses/by-nc-sa/4.0/","keywords":"pitching biomechanics, procedural animation, motion capture"}</script>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html,body{height:100%}body{margin:0;font:14px system-ui,sans-serif}[hidden]{display:none!important}*{box-sizing:border-box}</style>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -138,8 +143,12 @@ const FL=D.floor; function floorZ(x){ return x<=FL.x_flat?0 : x>=FL.x_land?FL.z_
 // loop: set (the pose at leg-lift onset, held) → the recording → finish held → reset (a fade, not data)
 const SET=1.2, T0=TS[0], T1=TS[NS-1], DATA=T1-T0, HOLD=0.7, FADE=0.6, CYCLE=SET+DATA+HOLD+FADE;
 const dataT=tau=>Math.min(T1, Math.max(T0, T0+tau-SET));
+// one slow breath during the set hold (not data): the upper body rises ≤ 4 mm and settles before the leg lift; feet and
+// pelvis do not move, and the pose is exactly the data pose at both ends of the hold
+const BREATH={thorax_prox:1, shoulder:1, glove_shoulder:1, head:1, elbow:0.7, glove_elbow:0.7, wrist:0.5, hand:0.5, glove_wrist:0.5, glove_hand:0.5, thorax_dist:0.4};
 function poseAt(tau){ const t=dataT(tau), Q={t};
   for(const k in D.pos) Q[k]=P(k,t);
+  if(tau>0 && tau<SET){ const b=0.0022*Math.sin(Math.PI*tau/SET)**2; for(const k in BREATH) Q[k][2]+=b*BREATH[k]; }
   Q.head_front=norm3(Q.head_front); Q.head_up=norm3(Q.head_up); return Q; }
 // ball: in the fingers until release; then the measured radar speed, aimed at the middle of the strike zone, gravity only
 const GRIP=D.ball.grip_m/HM, VB=D.ball.speed_ms/HM, GB=9.81/HM, LA=D.ball.launch_deg*D2R;
@@ -186,6 +195,10 @@ const PAL = {
   hair:"#252a3d", face:"#2a2233", glove:"#8a5236", gloveD:"#6e3f29", ball:"#ffffff", seam:"#e0433a"
 };
 const SHADOW = Object.fromEntries(Object.keys(PAL).map(k=>[k,"#000"]));
+const MIXC={};   // a near colour blended toward its far shade: a part that crosses the torso's depth darkens over a few cm, no pop
+function mixC(a,b,t){ t=Math.max(0,Math.min(1,t)); if(a===b||t<=0) return a; if(t>=1) return b; const k=a+b+Math.round(t*32);
+  if(!MIXC[k]){ const h=(c,i)=>parseInt(c.slice(1+2*i,3+2*i),16); MIXC[k]="#"+[0,1,2].map(i=>Math.round(h(a,i)+(h(b,i)-h(a,i))*Math.round(t*32)/32).toString(16).padStart(2,"0")).join(""); }
+  return MIXC[k]; }
 function smooth(ctx, pts){ // closed curve through edge midpoints, vertices as controls
   const n=pts.length, m=i=>{const a=pts[i%n],b=pts[(i+1)%n];return[(a[0]+b[0])/2,(a[1]+b[1])/2];};
   ctx.beginPath(); const s=m(n-1); ctx.moveTo(s[0],s[1]);
@@ -217,48 +230,58 @@ function drawFigure(ctx, Q, C, pj, ball){
   const pf=axes(sub3(Q.rear_hip,Q.lead_hip), sub3(Q.thorax_dist,Q.pelvis));
   const tf=axes(sub3(Q.shoulder,Q.glove_shoulder), sub3(Q.thorax_prox,Q.thorax_dist));
   const mf={lat:norm3(add3(pf.lat,tf.lat)), ap:norm3(add3(pf.ap,tf.ap))};
-  const waistC=lerp3(Q.pelvis,Q.thorax_dist,0.55), chestC=lerp3(Q.thorax_dist,Q.thorax_prox,0.45);
+  // belt line at 40 % of pelvis → lower thorax (0.57 H standing): baseball pants are belted just below the iliac crest
+  const waistC=lerp3(Q.pelvis,Q.thorax_dist,0.4), chestC=lerp3(Q.thorax_dist,Q.thorax_prox,0.45);
   const shW=len3(sub3(Q.shoulder,Q.glove_shoulder))/2;
-  const torsoDepth=proj(waistC)[2];
-  const parts=[];
+  const torsoDepth=proj(waistC)[2], farT=(d,o=0)=>(d-torsoDepth-o)/0.06+0.5;
+  const parts=[], TH0=0.2;   // thighs are drawn from 20 % down the femur; the pants hull covers the part above
   // legs: thigh, shank, shoe (heel and ball soles from the markers, toe box bends to stay above the mound)
   for(const sd of ["rear","lead"]){
     const hip=Q[sd+"_hip"], kn=Q[sd+"_knee"], an=Q[sd+"_ankle"], hs=Q[sd+"_heel"], bs=Q[sd+"_ball"];
     const e=norm3(sub3(bs,hs)), lat=norm3(cross3(e,[0,0,1])), up=cross3(lat,e);
     let tip=add3(bs,e,0.045); const fz=floorZ(tip[0])+0.001; if(tip[2]<fz) tip=[tip[0],tip[1],fz];
-    const shoe=[], soleP=[];
+    const shoe=[], soleP=[], band=[], ST=0.007;
     for(const [p,h] of [[add3(hs,e,-0.012),0.042],[bs,0.03],[tip,0.016]]) for(const s of [-1,1]){
-      const b=add3(p,lat,0.028*s); soleP.push(pj(b)); shoe.push(pj(b), pj(add3(b,up,h))); }
-    const dep=(J[sd+"_hip"][2]+J[sd+"_knee"][2]+J[sd+"_ankle"][2])/3, far=dep>torsoDepth;
+      const b=add3(p,lat,0.028*s); soleP.push(pj(b)); band.push(pj(b),pj(add3(b,up,ST))); shoe.push(pj(add3(b,up,ST)), pj(add3(b,up,h))); }
+    const soleUp=-dot3(up,toCam)>0.05;   // the underside of the shoe faces the camera
+    const dep=(J[sd+"_hip"][2]+J[sd+"_knee"][2]+J[sd+"_ankle"][2])/3, t=farT(dep);
     parts.push({d:dep, f:()=>{
-      smooth(ctx,hull(shoe)); ctx.fillStyle=far?C.shoeD:C.shoe; ctx.fill();
-      smooth(ctx,hull(soleP)); ctx.fillStyle=C.sole; ctx.fill();
-      limb(ctx,J[sd+"_knee"],pj(an),0.068,0.05,far?C.pantD:C.pant);
-      limb(ctx,J[sd+"_hip"],J[sd+"_knee"],0.1,0.07,far?C.pantD:C.pant); }});
+      if(!soleUp){ smooth(ctx,hull(band)); ctx.fillStyle=C.sole; ctx.fill(); }
+      smooth(ctx,hull(shoe)); ctx.fillStyle=mixC(C.shoe,C.shoeD,t); ctx.fill();
+      if(soleUp){ smooth(ctx,hull([...soleP,...band])); ctx.fillStyle=C.sole; ctx.fill(); }
+      limb(ctx,J[sd+"_knee"],pj(an),0.068,0.05,mixC(C.pant,C.pantD,t));
+      limb(ctx,pj(lerp3(hip,kn,TH0)),J[sd+"_knee"],0.1,0.07,mixC(C.pant,C.pantD,t)); }});   // starts below the joint, inside the pants: no bump above the belt
   }
   // trunk: pants over the pelvis ring, shirt over waist / chest / shoulder rings (the twist between them is the
   // measured hip–shoulder separation), a placket line down the chest when it faces the camera
-  { const hipR=ring(add3(Q.pelvis,pf.up,-0.02),pf.lat,pf.ap,0.1,0.07), waR=ring(waistC,mf.lat,mf.ap,0.088,0.064),
-      chR=ring(chestC,tf.lat,tf.ap,0.1,0.072), shR=ring(add3(Q.thorax_prox,tf.up,-0.03),tf.lat,tf.ap,shW+0.015,0.055);
+  { const thighTops=["rear","lead"].flatMap(sd=>{ const h=Q[sd+"_hip"], k=Q[sd+"_knee"], f=axes(pf.lat,sub3(h,k));   // pants reach down over the top of each thigh
+      return ring(lerp3(h,k,TH0),f.lat,f.ap,0.048,0.048,8); });
+    const hipR=ring(add3(Q.pelvis,pf.up,-0.02),pf.lat,pf.ap,0.1,0.07), waR=ring(waistC,mf.lat,mf.ap,0.088,0.064),
+      chR=ring(chestC,tf.lat,tf.ap,0.1,0.072), shR=ring(add3(Q.thorax_prox,tf.up,-0.03),tf.lat,tf.ap,shW+0.015,0.055),
+      ykR=ring(add3(Q.thorax_prox,tf.up,0.004),tf.lat,tf.ap,shW*0.55,0.042);
     const front=dot3(tf.ap,toCam);
     parts.push({d:torsoDepth, f:()=>{
-      smooth(ctx,hull([...hipR,...waR].map(pj))); ctx.fillStyle=C.pant; ctx.fill();
-      smooth(ctx,hull([...ring(add3(waistC,mf.lat,0),mf.lat,mf.ap,0.092,0.067),...chR,...shR].map(pj))); ctx.fillStyle=C.shirt; ctx.fill();
-      if(front>0.1){ const a=pj(add3(add3(Q.thorax_prox,tf.up,-0.05),tf.ap,0.06)), b=pj(add3(waistC,mf.ap,0.066));
+      smooth(ctx,hull([...hipR,...waR,...thighTops].map(pj))); ctx.fillStyle=C.pant; ctx.fill();
+      smooth(ctx,hull([...ring(add3(waistC,mf.lat,0),mf.lat,mf.ap,0.092,0.067),...chR,...shR,...ykR].map(pj))); ctx.fillStyle=C.shirt; ctx.fill();
+      if(front>0.1){ const a=pj(add3(add3(Q.thorax_prox,tf.up,-0.05),tf.ap,0.06)), b=pj(add3(lerp3(waistC,chestC,0.12),mf.ap,0.068));
         ctx.globalAlpha=Math.min(1,(front-0.1)*3); seg(ctx,[a,b],0.006*a[3],C.shirtDD,"round"); ctx.globalAlpha=1; }
     }});
   }
   // arms: upper arm, forearm, hand; the glove on the glove hand, the ball in the throwing hand until release
   for(const sd of ["","glove_"]){
     const sh=J[sd+"shoulder"], el=J[sd+"elbow"], wr=J[sd+"wrist"], hd=J[sd+"hand"];
-    const dep=(sh[2]+el[2]+wr[2])/3, far=dep>torsoDepth+0.02;
+    const dep=(sh[2]+el[2]+wr[2])/3, t=farT(dep,0.02);
+    const held=!sd && ball && !ball.free ? pj(ball.pos) : null;   // drawn over the fingers in every view, outlined so it reads as held
+    const drawBallHeld=()=>{ const b=held; disc(ctx,b,0.02*b[3],C.ball); if(C===PAL){ ctx.lineWidth=0.0035*b[3]; ctx.strokeStyle="rgba(31,34,51,.3)"; ctx.stroke(); }
+      seg(ctx,[[b[0]-0.01*b[3],b[1]+0.008*b[3]],[b[0]+0.01*b[3],b[1]-0.008*b[3]]],0.003*b[3],C.seam,"round"); };
     parts.push({d:dep, f:()=>{
-      const sk=far?C.skinD:C.skin;
-      limb(ctx,el,wr,0.052,0.036,sk); disc(ctx,hd,0.03*hd[3],sk);
-      limb(ctx,sh,el,0.066,0.052,far?C.shirtD:C.shirt);                                   // short sleeve to the elbow
+      const sk=mixC(C.skin,C.skinD,t);
+      limb(ctx,el,wr,0.052,0.036,sk);
+      disc(ctx,hd,0.03*hd[3],sk);
+      limb(ctx,sh,el,0.066,0.052,mixC(C.shirt,C.shirtD,t));                                   // short sleeve to the elbow
+      if(held) drawBallHeld();
       if(sd){ const gp=pj(add3(Q.glove_hand, norm3(sub3(Q.glove_hand,Q.glove_wrist)), 0.02));
-        disc(ctx,gp,0.05*gp[3],far?C.gloveD:C.glove); disc(ctx,gp,0.022*gp[3],C.gloveD); }
-      else if(ball && !ball.free){ const b=pj(ball.pos); disc(ctx,b,0.02*b[3],C.ball); seg(ctx,[[b[0]-0.01*b[3],b[1]+0.008*b[3]],[b[0]+0.01*b[3],b[1]-0.008*b[3]]],0.003*b[3],C.seam,"round"); }
+        disc(ctx,gp,0.05*gp[3],mixC(C.glove,C.gloveD,t)); disc(ctx,gp,0.022*gp[3],C.gloveD); }
     }});
   }
   // neck and head
@@ -286,7 +309,7 @@ function drawHead(ctx, c3, fr, up, r, pj, C){
     if(on(norm3(add3(fr,up,-0.5)),0.15)) seg(ctx,[P3(d0,0.97),P3(d1,0.97)],0.006*c[3],C.face,"round"); }
   for(const s of [-1,1]){ const d=[side[0]*s,side[1]*s,side[2]*s]; if(on(d,0.05)){ const e=P3(add3(d,fr,-0.1),0.96); disc(ctx,e,0.014*e[3],C.skinD); } }
   // hair tuft at the crown, swinging on a spring
-  const tuft=add3(c3,norm3(add3(up,fr,0.35)),r*0.95), lag=sub3(SPR.hair.get(tuft),tuft), l=len3(lag), k=l>0.012?0.012/l:1;
+  const tuft=add3(c3,norm3(add3(up,fr,0.35)),r*0.95), lag=sub3(SPR.hair.get(tuft),tuft), l=len3(lag), k=l>1e-6?0.012*Math.tanh(l/0.012)/l:1;   // soft limit, no hard stop
   const t2=pj(add3(tuft,lag,k));
   disc(ctx,t2,0.024*t2[3],C.hair);
 }
@@ -444,10 +467,12 @@ function updateUI(){
 document.getElementById("src").textContent=`Driveline OBP：${D.pitchers} 位投手 ${D.pitches} 球（${D.lefties_mirrored} 位左投鏡像）· 身高 ${SU.height_m.mean.toFixed(2)} m · 球速 ${SU.pitch_speed_mph.mean.toFixed(1)} ± ${SU.pitch_speed_mph.sd.toFixed(1)} mph · 跨步 ${(SU.stride_length_pct_height.mean*100).toFixed(0)}% 身高 · 肩外旋 ${SU.max_shoulder_external_rotation.mean.toFixed(0)}° · 骨盆→軀幹角速度高峰相隔 ${SU.pelvis_to_trunk_peak_ms.mean.toFixed(0)} ms`;
 
 const HSTEP=1/240; let accum=0;
+const SWAP=SET+DATA+HOLD+FADE/2, shownTau=t=>t>=SWAP?0:t;   // second half of the reset shows the set pose
 function advance(dt){   // fixed-step clock: loop time and the hair spring move together
   accum+=dt;
-  while(accum>=HSTEP){ accum-=HSTEP; simT+=HSTEP; tau+=HSTEP; if(tau>=CYCLE) tau-=CYCLE;
-    const Q=poseAt(tau); SPR.hair.step(add3(add3(Q.head,Q.head_up,-0.025),norm3(add3(Q.head_up,Q.head_front,0.35)),0.062*0.95),HSTEP); } }
+  while(accum>=HSTEP){ accum-=HSTEP; simT+=HSTEP; const prev=tau; tau+=HSTEP; if(tau>=CYCLE) tau-=CYCLE;
+    if(prev<SWAP && tau>=SWAP) SPR.hair.x=null;   // the reset swaps the (invisible) finish for the set pose: the hair starts at rest
+    const Q=poseAt(shownTau(tau)); SPR.hair.step(add3(add3(Q.head,Q.head_up,-0.025),norm3(add3(Q.head_up,Q.head_front,0.35)),0.062*0.95),HSTEP); } }
 if(reduce) setPlay(false);
 function frame(now){
   const dt=Math.min(0.1,(now-last)/1000); last=now;
