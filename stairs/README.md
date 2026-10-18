@@ -14,7 +14,7 @@ The section below is ready to paste into the root README, after "## Run cycle". 
 
 ## Stairs and ramps
 
-[![Animated terrain course: up a flight of stairs, over the landing, down again and over a hurdle](assets/stairs-cycle.gif)](https://htlin222.github.io/walk-cycle-animation/stairs/)
+[![Animated terrain course: up a flight of stairs, over the landing, down again and over a hurdle](../assets/stairs-cycle.gif)](https://htlin222.github.io/walk-cycle-animation/stairs/)
 
 `stairs/index.html` uses the walk page's body, drawing, springs and shadows. The cycle underneath is rebuilt from stair and ramp data, and the staircase never ends.
 

@@ -8,7 +8,7 @@ This folder holds the dance counterpart of the walk and run pages. The section b
 
 ## Dance cycle
 
-[![Animated dance cycles: Charleston, salsa, Indian dance](assets/dance-cycle.gif)](https://htlin222.github.io/walk-cycle-animation/dance/)
+[![Animated dance cycles: Charleston, salsa, Indian dance](../assets/dance-cycle.gif)](https://htlin222.github.io/walk-cycle-animation/dance/)
 
 `dance/index.html` uses the walk page's body, drawing, springs and shadows. The figure dances in place, and every number underneath comes from motion capture.
 
@@ -47,7 +47,7 @@ Human movement to music clusters near 2 Hz (120 per minute). Free locomotion ove
 - **The trunk starts at the hip joints.** CMU's root joint sits at the sacrum, about 0.12 leg lengths above the hip joints. The rig (as in the run and jump pages) builds the trunk up from the hip joints, so the page anchors it there. Anchored at the root, the shirt floated above the trousers and the torso was drawn 0.12 leg lengths too long.
 - **The Charleston lean is real.** The trunk tilts about 35° forward through the Charleston. In the raw BVH, hips-to-neck is 24–36° from the world vertical on average per clip, ranging 4–47°, while the same subject's T-pose stands within 3° of vertical. The lean does not come from the camera or the body-frame rotation. It is the crouched, bent-forward posture of the step.
 - **Lift-off and touchdown are eased.** A planted shoe pivots about its floor point, while the recorded ankle keeps drifting a little. Over the one sample next to each contact the page eases between the two, so the foot no longer jumps by up to 0.013 leg lengths when it is released or caught.
-- **Checks.** [`analysis/check_dance.py`](analysis/check_dance.py) runs the page in headless Chromium. The seam is no rougher than the rest of the cycle (≤ 0.0003 leg lengths beyond the roughest step elsewhere; measured 0). Planted feet slip 0.0 leg lengths/s over 67,000 planted samples. No sole point goes more than 0.00001 leg lengths below the floor. At lift-off and touchdown the ankle step is no larger than the largest step elsewhere. The trunk's base sits on the hip joints. There are no NaNs.
+- **Checks.** [`analysis/check_dance.py`](../analysis/check_dance.py) runs the page in headless Chromium. The seam is no rougher than the rest of the cycle (≤ 0.0003 leg lengths beyond the roughest step elsewhere; measured 0). Planted feet slip 0.0 leg lengths/s over 67,000 planted samples. No sole point goes more than 0.00001 leg lengths below the floor. At lift-off and touchdown the ankle step is no larger than the largest step elsewhere. The trunk's base sits on the hip joints. There are no NaNs.
 
 Controls: playback speed, style 查爾斯頓 Charleston / 騷莎 Salsa / 印度舞 Indian (cross-fades), exaggeration (secondary motion only), 節拍器 Click (metronome at the measured BPM), skeleton overlay with ankle paths and the pelvis-bounce curve. The beat chips count the beats of the cycle.
 

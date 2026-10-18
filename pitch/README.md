@@ -10,7 +10,7 @@ The section below can be pasted into the root README after "## Run cycle". The l
 
 ## Pitch
 
-[![Animated fastball, 3/4 view: set position and stride at 0.5×, foot contact to the finish at 0.1×](assets/pitch-cycle.gif)](https://htlin222.github.io/walk-cycle-animation/pitch/)
+[![Animated fastball, 3/4 view: set position and stride at 0.5×, foot contact to the finish at 0.1×](../assets/pitch-cycle.gif)](https://htlin222.github.io/walk-cycle-animation/pitch/)
 
 `pitch/index.html` throws a fastball from the averaged 3D motion of 67 pitchers. The phases are set position → leg lift → stride → foot plant → arm cocking → acceleration → release → follow-through → reset. The ball leaves the hand at the measured speed. The page has slow motion, a timeline, and ◀ ▶ buttons that step from one event to the next.
 
