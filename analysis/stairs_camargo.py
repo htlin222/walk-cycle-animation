@@ -109,17 +109,17 @@ def download(only=None):
         for zi in z.infolist():
             q = zi.filename.split('/')
             if len(q) != 5 or q[2] not in ('stair', 'ramp', 'levelground') or not q[4].endswith('.mat'): continue
-            if q[3] not in (('ik', 'conditions') if q[2] == 'levelground' else ('ik', 'gcRight', 'gcLeft', 'conditions', 'markers')): continue
+            if q[3] not in ('ik', 'gcRight', 'gcLeft', 'conditions', 'markers'): continue
             if q[2] == 'levelground' and '_normal_' not in q[4]: continue     # level reference: comfortable speed only
             if only and q[0] not in only: continue
             trials.setdefault((q[0], q[2], q[4][:-4]), {})[q[3]] = zi
-        have = lambda k: (R / k[0] / k[1] / (k[2] + '.npz')).exists() and (k[1] == 'levelground' or 'mk' in np.load(R / k[0] / k[1] / (k[2] + '.npz')))
+        have = lambda k: (R / k[0] / k[1] / (k[2] + '.npz')).exists() and 'mk' in np.load(R / k[0] / k[1] / (k[2] + '.npz'))
         todo = [(k, v) for k, v in sorted(trials.items()) if not have(k)]
         print(f'{url[-60:]}: {len(trials)} trials, {len(todo)} to fetch')
 
         def fetch(item):
             (s, mode, name), zis = item
-            if not all(k in zis for k in ('ik', 'conditions') + (() if mode == 'levelground' else ('gcRight', 'gcLeft'))): return f'{s} {name}: incomplete'
+            if not all(k in zis for k in ('ik', 'conditions', 'gcRight', 'gcLeft')): return f'{s} {name}: incomplete'
             raw = {k: member(url, zi) for k, zi in zis.items()}
             return (s, mode, name, raw)
         with ThreadPoolExecutor(8) as ex:
@@ -318,7 +318,7 @@ def stair_geometry(F):
         fwd = 1 if dirn == 'ascent' else -1
         rel[dirn] = dict(heel_from_back=float(np.median([fwd * (f[2][2] - back(f[0])) for f in G])),
                          toe_past_front=float(np.median([fwd * (f[3][2] - back(f[0])) - tread for f in G])))
-    return dict(tread=float(tread), riser=float((lv[5] - lv[1]) / 4), feet=rel,
+    return dict(tread=float(tread), riser=float((lv[5] - lv[1]) / 4), feet=rel, z_riser1=float(z1),
                 risers=[float(zs[k] - zs[k - 1]) for k in range(3, 7)])
 
 
