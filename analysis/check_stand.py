@@ -50,15 +50,15 @@ WALK_JS = """()=>{ startGait(); setPlay(false); blend=1;
           stand_angle_range_deg:(Math.max(...th)-Math.min(...th))*180/Math.PI, stand_model_err_deg:err*180/Math.PI, walk_slip_L_per_s:slip, speed_L_per_s:strideB()*cadB()/120}; }"""
 
 
-# head box incl. hair (leg lengths about the head centre), sole box; every overlap in px²
+# head box incl. hair (leg lengths about the head centre; the quiff tops out ≈0.21 above it), sole box, fingertips; every overlap in px²
 LAYOUT_JS = """async ()=>{ await document.fonts.ready; resize(); setPlay(false); setStyle('closed_foam'); blend=1; setMag(10, true); const ov=(a,b)=>Math.max(0,Math.min(a.right,b.right)-Math.max(a.left,b.left))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top));
   const txt=[...document.querySelectorAll('header h1, header p:not(.nav), header p.nav > *')].map(e=>{ const g=document.createRange(); g.selectNodeContents(e); return g.getBoundingClientRect(); }).filter(r=>r.width>0);
   const tb=document.getElementById('trace'), trace=getComputedStyle(tb).display!=='none', tr=tb.getBoundingClientRect();
   let l=1e9,r=-1e9,t=1e9,b=-1e9, ht=0, hs=0;
   for(let k=0;k<60*30;k++){ advance(1/30); const Q=pose(), X=x=>cx+S*x, Y=y=>gy-S*y;
-    const hb={left:X(Q.head[0]-0.16),right:X(Q.head[0]+0.17),top:Y(Q.head[1]+0.3),bottom:Y(Q.head[1]-0.16)};
+    const hb={left:X(Q.head[0]-0.16),right:X(Q.head[0]+0.17),top:Y(Q.head[1]+0.22),bottom:Y(Q.head[1]-0.16)};
     const pts=[[hb.left,hb.top],[hb.right,hb.bottom],...Q.legs.flatMap(L=>[[-0.09,-0.075],[0.27,-0.075]].map(v=>{ const p=G.shoePt(L.ankle,L.pitch,v); return [X(p[0]),Y(p[1])]; })),
-      ...Q.arms.map(A=>[X(A.wr[0]),Y(A.wr[1]-0.06)])];
+      ...Q.arms.map(A=>[X(A.wr[0]+Math.sin(A.fa)*0.14),Y(A.wr[1]-Math.cos(A.fa)*0.14)])]   // fingertips;
     for(const [x,y] of pts){ l=Math.min(l,x); r=Math.max(r,x); t=Math.min(t,y); b=Math.max(b,y); }
     for(const q of txt) ht=Math.max(ht,ov(hb,q)); if(trace) hs=Math.max(hs,ov(hb,tr)); }
   return {l,r,t,b,rail:document.querySelector('.rail').getBoundingClientRect().top, head_text:ht, head_trace:hs, trace, trace_text:trace? Math.max(0,...txt.map(q=>ov(tr,q))) : 0, S}; }"""

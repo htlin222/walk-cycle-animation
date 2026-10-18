@@ -28,12 +28,12 @@ FRAME_JS = """async (st)=>{ await document.fonts.ready; resize(); setPlay(false)
   const rail=document.querySelector('.rail').getBoundingClientRect().top;
   let L=1e9,R=-1e9,T=1e9,B=-1e9, hdr=0, still=0, jmp=0, prev=null;
   for(let k=0;k<3*M.TOT*240;k++){ advance(1/240); updateCamera(); const Q=pose(clock), X=x=>cx+S*x, Y=y=>gy-S*y;
-    const pts=[[Q.head[0]-0.16,Q.head[1]-0.16],[Q.head[0]+0.17,Q.head[1]+0.3],[Q.head[0]-0.16,Q.head[1]+0.3],
-      ...Q.arms.flatMap(A=>[[A.wr[0]-0.07,A.wr[1]-0.07],[A.wr[0]+0.07,A.wr[1]+0.07],A.el]),
+    const pts=[[Q.head[0]-0.16,Q.head[1]-0.16],[Q.head[0]+0.17,Q.head[1]+0.22],[Q.head[0]-0.16,Q.head[1]+0.22],   // head incl. hair: quiff ≤0.21 above the head centre
+      ...Q.arms.flatMap(A=>{ const h=[A.wr[0]+Math.sin(A.fa)*0.068, A.wr[1]-Math.cos(A.fa)*0.068]; return [[h[0]-0.075,h[1]-0.075],[h[0]+0.075,h[1]+0.075],A.el]; }),   // hand: ellipse 0.07 x 0.054 about its centre
       ...Q.legs.flatMap(Lg=>[[-0.09,-0.075],[0.27,-0.075],[0.27,0.04],[-0.09,0.04]].map(v=>G.shoePt(Lg.ankle,Lg.pitch,v))), Q.T(-0.2,0.4), Q.T(0.18,0.4)];
     const xs=pts.map(p=>X(p[0])), ys=pts.map(p=>Y(p[1]));
     L=Math.min(L,...xs); R=Math.max(R,...xs); T=Math.min(T,...ys); B=Math.max(B,...ys);
-    const hb={l:X(Q.head[0]-0.16),r:X(Q.head[0]+0.17),t:Y(Q.head[1]+0.3),b:Y(Q.head[1]-0.16)};    // head incl. hair vs title / nav text
+    const hb={l:X(Q.head[0]-0.16),r:X(Q.head[0]+0.17),t:Y(Q.head[1]+0.22),b:Y(Q.head[1]-0.16)};    // head incl. hair vs title / nav text
     for(const h of hd) hdr=Math.max(hdr, Math.max(0,Math.min(hb.r,h.right)-Math.max(hb.l,h.left))*Math.max(0,Math.min(hb.b,h.bottom)-Math.max(hb.t,h.top)));
     const c=camX*S; if(prev!==null){ const d=Math.abs(c-prev); jmp=Math.max(jmp,d); if(clock>WEIGH && clock<M.t0[6]) still=Math.max(still,d); } prev=c; }
   return {left:L,right:R,top:T,bottom:B,rail,hdr,still,jump_px:jmp,S}; }"""
