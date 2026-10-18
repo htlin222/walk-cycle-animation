@@ -4,6 +4,9 @@
   floor   – deepest any sole point (heel, ball, toe, toe corner) goes below the floor, ground and air
   flight  – a parabola fitted to the page's COM between take-off and touchdown must give g = 9.81 m/s²; both soles clear the floor;
             take-off / touchdown COM speed on the ground side vs the parabola's
+  framing – fixed camera, three jumps of each style at 1280x800, 1024x640, 560x700 and 390x844: the whole figure (head and hair,
+            hands, shoes) stays on screen, its head clear of the title / nav text, the shoes above the controls; the camera
+            only moves while the jumper recovers and stands (never from the countermovement to the landing) and never cuts
 Usage: python check_jump.py     (CHROMIUM=/path/to/chrome to use a local build)
 """
 import os, json, pathlib, numpy as np
@@ -18,6 +21,22 @@ JS = """(st)=>{ setPlay(false); setStyle(st); if(style!==st){ advance(M.TOT-cloc
     for(const L of Q.legs){ const pts=SOLE.map(v=>{ const p=shoePt(L.ankle,L.pitch,v); return [travel+p[0],p[1]]; }); r.feet.push(pts); }
     rows.push(r); }
   return {rows, T:M.T, tTO:M.tTO, tTD:M.tTD, TOT:M.TOT, leg_m:M.L, FD:M.FD, h_page:FC.h, vy:FC.vy, vx:FC.vx, g_L:M.g}; }"""
+
+
+FRAME_JS = """async (st)=>{ await document.fonts.ready; resize(); setPlay(false); setStyle(st); if(style!==st) advance(M.TOT-clock+1e-4); advance(M.TOT-clock+0.006);
+  const hd=[...document.querySelectorAll('header h1, header p:not(.nav), header p.nav > *')].map(e=>{ const g=document.createRange(); g.selectNodeContents(e); return g.getBoundingClientRect(); }).filter(r=>r.width>0);   // the text itself
+  const rail=document.querySelector('.rail').getBoundingClientRect().top;
+  let L=1e9,R=-1e9,T=1e9,B=-1e9, hdr=0, still=0, jmp=0, prev=null;
+  for(let k=0;k<3*M.TOT*240;k++){ advance(1/240); updateCamera(); const Q=pose(clock), X=x=>cx+S*x, Y=y=>gy-S*y;
+    const pts=[[Q.head[0]-0.16,Q.head[1]-0.16],[Q.head[0]+0.17,Q.head[1]+0.3],[Q.head[0]-0.16,Q.head[1]+0.3],
+      ...Q.arms.flatMap(A=>[[A.wr[0]-0.07,A.wr[1]-0.07],[A.wr[0]+0.07,A.wr[1]+0.07],A.el]),
+      ...Q.legs.flatMap(Lg=>[[-0.09,-0.075],[0.27,-0.075],[0.27,0.04],[-0.09,0.04]].map(v=>G.shoePt(Lg.ankle,Lg.pitch,v))), Q.T(-0.2,0.4), Q.T(0.18,0.4)];
+    const xs=pts.map(p=>X(p[0])), ys=pts.map(p=>Y(p[1]));
+    L=Math.min(L,...xs); R=Math.max(R,...xs); T=Math.min(T,...ys); B=Math.max(B,...ys);
+    const hb={l:X(Q.head[0]-0.16),r:X(Q.head[0]+0.17),t:Y(Q.head[1]+0.3),b:Y(Q.head[1]-0.16)};    // head incl. hair vs title / nav text
+    for(const h of hd) hdr=Math.max(hdr, Math.max(0,Math.min(hb.r,h.right)-Math.max(hb.l,h.left))*Math.max(0,Math.min(hb.b,h.bottom)-Math.max(hb.t,h.top)));
+    const c=camX*S; if(prev!==null){ const d=Math.abs(c-prev); jmp=Math.max(jmp,d); if(clock>WEIGH && clock<M.t0[6]) still=Math.max(still,d); } prev=c; }
+  return {left:L,right:R,top:T,bottom:B,rail,hdr,still,jump_px:jmp,S}; }"""
 
 
 def check(r):
@@ -67,5 +86,15 @@ with sync_playwright() as p:
                 and r['floor_mm'] > -0.5 and r['flight_clear_mm'] > -0.5)
         ok &= good
         print('   ', 'PASS' if good else 'FAIL', '(g within 0.01 m/s², pinned ball drift < 0.1 mm, touching contact point < 1 mm/s, nothing below the floor by > 0.5 mm, ground or air)')
+    for vw, vh in [(1280, 800), (1024, 640), (560, 700), (390, 844)]:
+        pg.set_viewport_size({'width': vw, 'height': vh})
+        for st in ['cmj', 'broad']:
+            pg.goto(url); pg.wait_for_timeout(200)
+            f = pg.evaluate(FRAME_JS, st)
+            good = (f['left'] >= 0 and f['right'] <= vw and f['top'] >= 0 and f['bottom'] <= f['rail'] and f['hdr'] <= 0
+                    and f['still'] < 1e-6 and f['jump_px'] < 4)
+            ok &= good
+            print(f"{vw}x{vh} {st:5s} S={f['S']:.0f}px figure x {f['left']:.0f}..{f['right']:.0f}, y {f['top']:.0f}..{f['bottom']:.0f} (controls at {f['rail']:.0f}); "
+                  f"head/title overlap {f['hdr']:.0f} px2; camera motion in action {f['still']:.1e} px, largest step {f['jump_px']:.2f} px  {'PASS' if good else 'FAIL'}")
     print('page errors', errs); b.close()
     raise SystemExit(0 if ok and not errs else 1)

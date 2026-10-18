@@ -9,6 +9,9 @@ stand/, per condition, 60 s (one full period of the synthesis) sampled at 120 Hz
   pendulum  – COP - COM = -COM''/w0^2 holds on the synthesised signals (rms residual / rms COP)
 index.html (walk): standing sway is present and the feet stay put during stand -> lean -> first steps; walking slip
   (single-support pivot speed) is compared with the committed version (git HEAD) to catch regressions.
+stand/ layout, closed eyes on foam at x10 (largest sway), at 1280x800, 700x800, 600x700 and 390x844: the figure stays on screen
+  and above the controls, its head clear of the title / nav text and of the stabilogram, and the stabilogram clear of
+  the text; switching x1 -> x10 eases the body over (largest change of the body angle per 1/240 s step)
 Usage: python check_stand.py     (CHROMIUM=/path/to/chrome to use a local build); exits 1 on failure
 """
 import os, sys, json, pathlib, subprocess, tempfile, numpy as np
@@ -16,7 +19,7 @@ from playwright.sync_api import sync_playwright
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 D = json.load(open(ROOT / 'analysis' / 'data' / 'normative_stand_bds.json'))
 
-STAND_JS = """(c)=>{ setStyle(c); blend=1; setMag(1); setPlay(false);
+STAND_JS = """(c)=>{ setStyle(c); blend=1; setMag(1, true); setPlay(false);
   const P=[[-0.085,-0.07],[0.17,-0.07],[0.255,-0.07]], out={cop_ap:[],cop_ml:[],com_ap:[],com_ml:[],body_ap:[]};
   let ref=null, move=0, depth=0;
   const th0=Math.atan2(-STAND_X, STAND_H-STAND_AY);                         // hip about the ankle at zero sway
@@ -45,6 +48,23 @@ WALK_JS = """()=>{ startGait(); setPlay(false); blend=1;
   const m=th.reduce((a,b)=>a+b,0)/th.length, rms=Math.sqrt(th.reduce((a,b)=>a+(b-m)**2,0)/th.length);
   return {has_sway:has, stand_samples:th.length, stand_feet_move_L:standMove, stand_angle_rms_deg:rms*180/Math.PI,
           stand_angle_range_deg:(Math.max(...th)-Math.min(...th))*180/Math.PI, stand_model_err_deg:err*180/Math.PI, walk_slip_L_per_s:slip, speed_L_per_s:strideB()*cadB()/120}; }"""
+
+
+# head box incl. hair (leg lengths about the head centre), sole box; every overlap in px²
+LAYOUT_JS = """async ()=>{ await document.fonts.ready; resize(); setPlay(false); setStyle('closed_foam'); blend=1; setMag(10, true); const ov=(a,b)=>Math.max(0,Math.min(a.right,b.right)-Math.max(a.left,b.left))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top));
+  const txt=[...document.querySelectorAll('header h1, header p:not(.nav), header p.nav > *')].map(e=>{ const g=document.createRange(); g.selectNodeContents(e); return g.getBoundingClientRect(); }).filter(r=>r.width>0);
+  const tb=document.getElementById('trace'), trace=getComputedStyle(tb).display!=='none', tr=tb.getBoundingClientRect();
+  let l=1e9,r=-1e9,t=1e9,b=-1e9, ht=0, hs=0;
+  for(let k=0;k<60*30;k++){ advance(1/30); const Q=pose(), X=x=>cx+S*x, Y=y=>gy-S*y;
+    const hb={left:X(Q.head[0]-0.16),right:X(Q.head[0]+0.17),top:Y(Q.head[1]+0.3),bottom:Y(Q.head[1]-0.16)};
+    const pts=[[hb.left,hb.top],[hb.right,hb.bottom],...Q.legs.flatMap(L=>[[-0.09,-0.075],[0.27,-0.075]].map(v=>{ const p=G.shoePt(L.ankle,L.pitch,v); return [X(p[0]),Y(p[1])]; })),
+      ...Q.arms.map(A=>[X(A.wr[0]),Y(A.wr[1]-0.06)])];
+    for(const [x,y] of pts){ l=Math.min(l,x); r=Math.max(r,x); t=Math.min(t,y); b=Math.max(b,y); }
+    for(const q of txt) ht=Math.max(ht,ov(hb,q)); if(trace) hs=Math.max(hs,ov(hb,tr)); }
+  return {l,r,t,b,rail:document.querySelector('.rail').getBoundingClientRect().top, head_text:ht, head_trace:hs, trace, trace_text:trace? Math.max(0,...txt.map(q=>ov(tr,q))) : 0, S}; }"""
+MAG_JS = """()=>{ setPlay(false); setStyle('closed_foam'); blend=1; setMag(1, true); advance(7.3);
+  const ang=()=>{ const Q=pose(), L=Q.legs[0]; return Math.atan2(L.hip[0]-L.ankle[0], L.hip[1]-L.ankle[1])*180/Math.PI; };
+  setMag(10); let a=ang(), m=0; for(let k=0;k<480;k++){ advance(1/240); const b=ang(); m=Math.max(m,Math.abs(b-a)); a=b; } return m; }"""
 
 
 def stats(x, t):
@@ -82,6 +102,15 @@ with sync_playwright() as p:
         cop, com = np.array(r['cop_ap']), np.array(r['com_ap']); acc = np.gradient(np.gradient(com, r['t']), r['t'])
         res = np.sqrt(np.mean((cop - (com - acc / r['w0'] ** 2))[5:-5] ** 2)) / np.sqrt(np.mean(cop ** 2))
         check('COP - COM = -COM\'\'/w0^2', res < 0.02, f"residual {res*100:.2f} % of COP rms")
+    for vw, vh in [(1280, 800), (700, 800), (600, 700), (390, 844)]:
+        pg.set_viewport_size({'width': vw, 'height': vh}); pg.goto((ROOT / 'stand' / 'index.html').as_uri()); pg.wait_for_timeout(200)
+        f = pg.evaluate(LAYOUT_JS)
+        check(f'layout {vw}x{vh}', f['l'] >= 0 and f['r'] <= vw and f['t'] >= 0 and f['b'] <= f['rail'] and f['head_text'] == 0 and f['head_trace'] == 0 and f['trace_text'] == 0,
+              f"S {f['S']:.0f} px, figure x {f['l']:.0f}..{f['r']:.0f} y {f['t']:.0f}..{f['b']:.0f} (controls {f['rail']:.0f}); stabilogram {'shown' if f['trace'] else 'hidden'}; "
+              f"overlap px2 head/text {f['head_text']:.0f}, head/stabilogram {f['head_trace']:.0f}, stabilogram/text {f['trace_text']:.0f}")
+    pg.set_viewport_size({'width': 1280, 'height': 800}); pg.goto((ROOT / 'stand' / 'index.html').as_uri()); pg.wait_for_timeout(200)
+    m = pg.evaluate(MAG_JS)
+    check('x1 -> x10 eases', m < 0.1, f"largest body-angle step {m:.3f} deg per 1/240 s (sway at x10 itself: < 0.03)")
     stand_errs = list(errs)
     # walk page, current file and the committed version
     walk = {}
