@@ -23,7 +23,7 @@ Every walker uses the page's neutral gait (`walk/index.html`, GAIT-BEGIN…GAIT-
 
 | File | Role |
 |---|---|
-| `gait.js` | Copy of the gait block from `../index.html`. `video.py` refreshes it on every run. |
+| `gait.js` | Copy of the gait block from `../walk/index.html`. `video.py` refreshes it on every run. |
 | `crowd.js` | Per-walker simulation, looks, crowd layout, perspective renderer with depth of field. |
 | `render.html` | Headless harness: `setup(w, h, seed, offset, mode, n)`, `advance(dt)`, `drawNow()`. |
 | `video.py` | Deterministic frame-stepped capture in parallel Chromium workers, then ffmpeg encoding to `walk-crowd-dof-1080p.mp4`. |

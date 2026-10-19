@@ -56,6 +56,13 @@ h2 .en{font-weight:500;color:var(--muted);font-size:14px}
 .body p{margin:0;font-size:13.5px;color:var(--ink)}
 .src{margin-top:auto!important;padding-top:6px;font-family:var(--mono);font-size:11px!important;color:var(--muted)!important}
 .lic{color:var(--accent)}
+.stats{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:2px}
+.stats b{font-family:var(--mono);font-weight:500;font-size:11px;color:var(--ink);background:var(--rail);border-radius:6px;padding:2px 7px}
+.thumb.text{display:grid;place-items:center;font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;line-height:1.6}
+.sources{margin-top:36px}
+.sources h3{margin:0 0 8px;font-family:var(--display);font-weight:800;font-stretch:112%;font-size:16px}
+.sources ul{margin:0;padding-left:18px;font-size:13px;color:var(--muted);display:grid;gap:3px}
+.sources a{color:var(--ink)}
 footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 20px}
 footer a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
 footer a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -66,7 +73,7 @@ footer a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 <main>
   <header>
     <h1>Movement Studies 動作研究</h1>
-    <p class="lede">七個程序化動畫，每一個都由公開的生物力學資料驅動：臨床步態常模、測力板與真人動作捕捉。腳不滑步、騰空遵守重力，身體比例來自 ANSUR II 人體測量。點選任一動作進入互動頁面。</p>
+    <p class="lede">七個程序化動畫（另附群眾渲染器），每一個都由公開的生物力學資料驅動：臨床步態常模、測力板與真人動作捕捉。腳不滑步、騰空遵守重力，身體比例來自 ANSUR II 人體測量。點選任一動作進入互動頁面。</p>
     <ul class="facts" aria-label="共同原則">
       <li>腳不滑步</li><li>實測資料</li><li>ANSUR II 比例</li><li>純 Canvas，無相依套件</li>
     </ul>
@@ -76,38 +83,63 @@ footer a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <div class="thumb"><img src="assets/walk-cycle.gif" alt="走路動畫：角色以開心的步態行走" width="720" height="480" loading="lazy" decoding="async"></div>
       <div class="body"><h2>走路 <span class="en">Walk</span></h2>
         <p>24 位健康成人的臨床步態常模驅動雙腿，開心、平常、低落三種風格，可從原地起步。</p>
+        <div class="stats"><b>96–117 步/分</b><b>3 種情緒風格</b><b>滑步 ≤ 0.0002 腿長</b></div>
         <p class="src">WBDS · CMU mocap · ANSUR II</p></div></a></li>
     <li><a class="card" href="run/">
       <div class="thumb"><img src="assets/run-cycle.gif" alt="跑步動畫：雙腳離地的騰空期" width="600" height="400" loading="lazy" decoding="async"></div>
       <div class="body"><h2>跑步 <span class="en">Run</span></h2>
         <p>28 位跑者在 2.5、3.5、4.5 m/s 的跑步機資料，真實騰空期，速度由地面反作用力積分而來。</p>
+        <div class="stats"><b>161–183 步/分</b><b>觸地 195–272 ms</b><b>3 種跑速</b></div>
         <p class="src">RBDS · CMU mocap</p></div></a></li>
     <li><a class="card" href="stand/">
       <div class="thumb"><img src="assets/stand-cycle.gif" alt="站立動畫：放大十倍的身體晃動與壓力中心" width="600" height="400" loading="lazy" decoding="async"></div>
       <div class="body"><h2>站立 <span class="en">Stand</span></h2>
         <p>59 位年輕人站在測力板上的晃動頻譜，以腳踝為支點的倒單擺，睜眼／閉眼 × 硬地／軟墊。</p>
+        <div class="stats"><b>擺角 0.26° RMS</b><b>4 種條件</b><b>×1 / ×5 / ×10</b></div>
         <p class="src">BDS (Santos &amp; Duarte 2016)</p></div></a></li>
     <li><a class="card" href="stairs/">
       <div class="thumb"><img src="assets/stairs-cycle.gif" alt="樓梯動畫：爬上樓梯、走過平台、下樓並跨過欄架" width="560" height="420" loading="lazy" decoding="async"></div>
       <div class="body"><h2>樓梯與地形 <span class="en">Stairs &amp; terrain</span></h2>
         <p>22 人上下 4 種階高與 6 種坡度，另有混合樓梯、坡道、路緣石與跨欄的無縫地形路線。</p>
+        <div class="stats"><b>22 人</b><b>4 階高 · 6 坡度</b><b>跨欄 3 高度</b></div>
         <p class="src">Camargo et al. 2021 · Chardon 2024 · Lu 2022</p></div></a></li>
     <li><a class="card" href="jump/">
       <div class="thumb"><img src="assets/jump-cycle.gif" alt="跳躍動畫：原地反向跳的騰空" width="600" height="400" loading="lazy" decoding="async"></div>
       <div class="body"><h2>跳躍 <span class="en">Jump</span></h2>
         <p>原地反向跳與立定跳遠，依測力板文獻切分階段，騰空嚴格走 g = 9.81 m/s² 的拋物線。</p>
+        <div class="stats"><b>騰空 473 ms</b><b>跳高 25 cm</b><b>立定跳遠 1.27 m</b></div>
         <p class="src">CMU mocap · McMahon 2018 · Linthorne 2001</p></div></a></li>
     <li><a class="card" href="dance/">
       <div class="thumb"><img src="assets/dance-cycle.gif" alt="舞蹈動畫：查爾斯頓、騷莎與印度舞" width="600" height="400" loading="lazy" decoding="async"></div>
       <div class="body"><h2>舞蹈 <span class="en">Dance</span></h2>
         <p>查爾斯頓、騷莎、印度舞，節拍從動作本身量出，附可開關的節拍器。</p>
+        <div class="stats"><b>185 / 82 / 77 BPM</b><b>3 種舞</b></div>
         <p class="src">CMU mocap</p></div></a></li>
     <li><a class="card" href="pitch/">
       <div class="thumb"><img src="assets/pitch-cycle.gif" alt="投球動畫：斜前視角的快速直球" width="540" height="360" loading="lazy" decoding="async"></div>
       <div class="body"><h2>投球 <span class="en">Pitch</span></h2>
         <p>67 位投手、194 顆快速直球的 3D 動作平均，三種視角、可逐事件步進，球速 84.8 mph。</p>
+        <div class="stats"><b>84.8 mph</b><b>肩外旋 168°</b><b>3 種視角</b></div>
         <p class="src">Driveline OBP · <span class="lic">CC BY-NC-SA 4.0</span></p></div></a></li>
+    <li><a class="card" href="https://github.com/htlin222/walk-cycle-animation/tree/main/crowd" rel="noopener">
+      <div class="thumb text"><span>140 walkers · ±100 ms<br>depth of field · 1920×1080<br><br>影片需在本機渲染</span></div>
+      <div class="body"><h2>群眾 <span class="en">Crowd</span></h2>
+        <p>140 個不同身高、膚色、穿著的人用同一套走路步態一起走，起步時間差在 ±100 ms 內，前景有景深模糊，以 Playwright 逐格渲染成影片。</p>
+        <div class="stats"><b>140 人</b><b>20 s · 30 fps</b></div>
+        <p class="src">看原始碼 → GitHub crowd/</p></div></a></li>
   </ul>
+  <section class="sources" aria-labelledby="src-h">
+    <h3 id="src-h">資料來源</h3>
+    <ul>
+      <li>走路：Fukuchi, Fukuchi &amp; Duarte (2018) <i>PeerJ</i> 6:e4640，WBDS 步態資料庫</li>
+      <li>跑步：Fukuchi, Fukuchi &amp; Duarte (2017) <i>PeerJ</i> 5:e3298，RBDS（CC-BY-4.0）</li>
+      <li>站立：Santos &amp; Duarte (2016) <i>PeerJ</i> 4:e2648，BDS 平衡資料庫</li>
+      <li>樓梯與坡道：Camargo et al. (2021) <i>J Biomech</i> 119:110320；跨欄：Chardon et al. (2024)、Lu et al. (2022)</li>
+      <li>投球：Driveline OpenBiomechanics Project（CC BY-NC-SA 4.0）</li>
+      <li>上半身、跳躍、舞蹈：<a href="http://mocap.cs.cmu.edu/" rel="noopener">CMU Graphics Lab Motion Capture Database</a></li>
+      <li>身體比例：ANSUR II（Gordon et al. 2014）</li>
+    </ul>
+  </section>
   <footer>
     <span>每頁都可離線開啟，沒有建置步驟。</span>
     <a href="https://github.com/htlin222/walk-cycle-animation" rel="noopener">原始碼與資料處理 GitHub</a>

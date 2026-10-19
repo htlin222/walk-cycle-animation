@@ -107,7 +107,7 @@ The pitch page draws its own 3D figure in body heights (H). In the set pose its 
 
 [![Animated run cycle, 3.5 m/s, half speed](assets/run-cycle.gif)](https://htlin222.github.io/walk-cycle-animation/run/)
 
-`run/index.html` uses the walk page's body, drawing, springs and shadows. The cycle underneath is rebuilt from running data.
+`run/index.html` uses the walk page's (`walk/index.html`) body, drawing, springs and shadows. The cycle underneath is rebuilt from running data.
 
 | Layer | Source | How it is used |
 |---|---|---|

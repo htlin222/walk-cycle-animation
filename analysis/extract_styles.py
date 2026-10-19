@@ -1,4 +1,4 @@
-"""Build the per-style upper-body curves embedded in index.html.
+"""Build the per-style upper-body curves embedded in walk/index.html.
 
 Input : analysis/data/cmu_sagittal_curves.json  (output of analyze.py on CMU BVH clips)
         analysis/data/normative_gait_wbds.json  (clinical normative gait, Fukuchi et al. 2018 via PhysioGaitNorm)
