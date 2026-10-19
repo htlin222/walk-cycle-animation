@@ -7,6 +7,8 @@
   ball    – in the hand until release, then leaves at the measured speed without jumping
   seams   – the drawn pose is continuous where the set hold (with its breath) meets the leg lift and across the loop
   hair    – the hair spring restarts at rest when the reset swaps the finish for the set pose (no swing at the loop seam)
+  outline – every coordinate the figure drawing sends to the canvas (cross-section hulls, limb capsules, head) is finite,
+            in all three views over the whole loop (5 ms steps), through a recording stand-in for the 2D context
 Usage: python check_pitch.py     (CHROMIUM=/path/to/chrome to use a local build)
 """
 import os, json, pathlib, sys
@@ -43,6 +45,13 @@ JS = """()=>{ setPlay(false);
   seek(SET+DATA); accum=0; res.hair_after_swap_mm=0;
   for(let i=0;i<Math.round((CYCLE-DATA)/0.005);i++){ advance(0.005);
     if(tau>=SWAP || tau<SET) res.hair_after_swap_mm=Math.max(res.hair_after_swap_mm, len3(sub3(SPR.hair.x,tuft(poseAt(shownTau(tau)))))*mm); }
+  // outline: record every number the figure drawing passes to the canvas
+  const rec={n:0,bad:0}, store={}, fake=new Proxy(store,{ get:(t,k)=>k in t? t[k] : (...args)=>{ for(const v of args) if(typeof v==='number'){ rec.n++; if(!Number.isFinite(v)) rec.bad++; } },
+    set:(t,k,v)=>{ t[k]=v; return true; } });
+  for(const v of views){ camAz=v[0]*D2R; camEl=v[1]*D2R; setCam();
+    for(let t2=0; t2<CYCLE; t2+=0.005) drawFigure(fake,poseAt(t2),PAL,proj,ballAt(t2)); }
+  camAz=0; camEl=VIEWS.side[1]*D2R; setCam();
+  res.outline_numbers=rec.n; res.outline_bad=rec.bad;
   // the clock: one loop of advance() returns to the same instant
   seek(0.5); accum=0; const t0=tau; advance(CYCLE);
   res.loop_err_ms=Math.abs(((tau+accum-t0+CYCLE/2)%CYCLE+CYCLE)%CYCLE-CYCLE/2)*1000;   // accum: time not stepped yet
@@ -78,6 +87,7 @@ ok(abs(bl['speed_ms'] / DATA['ball']['speed_ms'] - 1) < 0.005, f"ball speed afte
 ok(bl['gone_after_flight'], 'ball removed after reaching the plate')
 ok(r['seam_set_mm'] < 0.1 and r['seam_loop_mm'] < 0.1, f"no jump where the set hold ends ({r['seam_set_mm']:.3f} mm) or across the loop ({r['seam_loop_mm']:.3f} mm)")
 ok(r['hair_after_swap_mm'] < 5, f"hair spring at rest through the reset swap and the set hold: lags at most {r['hair_after_swap_mm']:.2f} mm")
+ok(r['outline_bad'] == 0 and r['outline_numbers'] > 1e5, f"figure outline finite in every view: {r['outline_bad']} bad of {r['outline_numbers']:,} canvas coordinates")
 ok(r['loop_err_ms'] < 1, f"one loop of the clock returns to the same instant (error {r['loop_err_ms']:.3f} ms)")
 ok(not errs, f'page errors {errs}')
 sys.exit(1 if fails else 0)
