@@ -15,8 +15,8 @@ def work(a,b):
             open(f"{FR}/{i:05d}.png","wb").write(base64.b64decode(d.split(",",1)[1]))
         br.close()
 def sync_gait():
-    # gait.js is the GAIT-BEGIN…GAIT-END block of ../index.html; refresh it so the crowd always uses the page's gait
-    src=os.path.join(HERE,"..","index.html")
+    # gait.js is the GAIT-BEGIN…GAIT-END block of ../walk/index.html; refresh it so the crowd always uses the page's gait
+    src=os.path.join(HERE,"..","walk","index.html")
     if not os.path.exists(src): return
     html=open(src,encoding="utf-8").read(); a=html.index("// ===== GAIT-BEGIN ====="); b=html.index("// ===== GAIT-END =====")
     open(os.path.join(HERE,"gait.js"),"w",encoding="utf-8").write(html[a:b]+"// ===== GAIT-END =====\n")

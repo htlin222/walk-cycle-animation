@@ -66,6 +66,7 @@ button{font:inherit;cursor:pointer}
 .style:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 header p.src{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px}
 header p.nav{display:block;margin-top:8px;pointer-events:auto}
+header p.nav .sep{color:var(--muted);margin:0 8px}
 header p.nav a{color:var(--ink);font-size:13px;text-decoration:none;border-bottom:1px solid var(--line)}
 header p.nav a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .frame{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -83,7 +84,7 @@ label.tog input{accent-color:var(--accent)}
     <h1>Run Cycle Study</h1>
     <p>腿、骨盆與地面反作用力：28 位跑者的跑步機實測（RBDS），分 2.5 / 3.5 / 4.5 m/s。前進速度由地面反作用力積分，觸地時腳不滑步，騰空時等速。手臂與軀幹：真人跑步動作捕捉。</p>
     <p class="src" id="src"></p>
-    <p class="nav"><a href="../">← 走路 Walk</a></p>
+    <p class="nav"><a href="../">← 首頁 Home</a><span class="sep">·</span><a href="../walk/">走路 Walk</a></p>
   </header>
   <div class="rail">
     <button id="play" aria-label="暫停"><svg viewBox="0 0 14 14" id="ico"><rect x="2" y="1" width="3.5" height="12"/><rect x="8.5" y="1" width="3.5" height="12"/></svg></button>

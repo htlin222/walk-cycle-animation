@@ -2,7 +2,7 @@
 
 A packed crowd of 140 people walking together, rendered to a clean 16:9 video (1920×1080, 30 fps, 20 s, no UI).
 
-Every walker uses the page's neutral gait (`index.html`, GAIT-BEGIN…GAIT-END) and the same no-slip simulation, running on its own spring state and its own clock.
+Every walker uses the page's neutral gait (`walk/index.html`, GAIT-BEGIN…GAIT-END) and the same no-slip simulation, running on its own spring state and its own clock.
 
 ## What differs between walkers
 
@@ -23,7 +23,7 @@ Every walker uses the page's neutral gait (`index.html`, GAIT-BEGIN…GAIT-END) 
 
 | File | Role |
 |---|---|
-| `gait.js` | Copy of the gait block from `../index.html`. `video.py` refreshes it on every run. |
+| `gait.js` | Copy of the gait block from `../walk/index.html`. `video.py` refreshes it on every run. |
 | `crowd.js` | Per-walker simulation, looks, crowd layout, perspective renderer with depth of field. |
 | `render.html` | Headless harness: `setup(w, h, seed, offset, mode, n)`, `advance(dt)`, `drawNow()`. |
 | `video.py` | Deterministic frame-stepped capture in parallel Chromium workers, then ffmpeg encoding to `walk-crowd-dof-1080p.mp4`. |
