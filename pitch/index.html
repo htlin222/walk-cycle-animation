@@ -229,28 +229,48 @@ function axes(lat0, up0){ const up=norm3(up0), lat=norm3(sub3(lat0, [up[0]*dot3(
 // the back of the skull and a tuft ≈2 cm proud of the crown.
 const HEAD={r:0.058, drop:-0.012, tuft:0.02};
 const tuftAt=Q=>add3(add3(Q.head,Q.head_up,HEAD.drop),norm3(add3(Q.head_up,Q.head_front,0.35)),HEAD.r*0.95);
-// Widths in body heights, a little fuller than real limbs to match the walk / run character.
-// Joins: the shirt is one hull around the waist, the ribcage, a neck-base ring and both shoulder caps (so the trapezius
-// slopes from the neck to the shoulder and the ribcage tapers to the waist); the pants are one hull around the waist, the
-// hip joints and the top of each thigh. Limbs start inside those hulls. Each limb piece is classed as in front of or
-// behind the trunk by where it sits relative to the trunk axis, as seen from the camera; behind pieces are drawn first, a
-// near thigh's top goes under the shirt hem, everything else in front is depth-sorted after the shirt.
-const FIG={ shoulderR:0.043, neckR:0.042, thighW:[0.1,0.07], shankW:[0.07,0.05],
-  delt:[0.086,0.072,0.055], foreW:[0.056,0.036], handR:0.03, TH:0.18 };
+// Widths in body heights H (ANSUR II men, a little fuller where clothes add ease), drawn like the 2D walk / run character:
+// an untucked tee with short sleeves, straight pants to the ankle, mitten hands, flat shoes with a sole strip.
+// The trunk is a chain of elliptical cross-sections along a smooth spine (pelvis → lower thorax → neck base); each
+// section's frame turns from the pelvis's to the thorax's through the lumbar region, so the measured hip–shoulder
+// separation reads as a spiral. Its outline is the union of hulls of neighbouring sections. Limbs are chains of circular
+// cross-sections with anatomical radii (thigh, knee, calf, ankle; deltoid, biceps, elbow, forearm swell, wrist, hand),
+// drawn as tapered capsules between neighbours, so joints round off and bulges show. Each limb piece is classed as in
+// front of or behind the trunk by which side of the trunk axis it sits on, as seen from the camera.
+const FIG={
+  // [u along the segment, radius]
+  thigh:[[0,0.056],[0.25,0.055],[0.55,0.05],[0.85,0.043],[1,0.04]],                  // pants: full at the hip, narrowing to the knee
+  shank:[[0,0.039],[0.12,0.039],[0.3,0.042],[0.5,0.039],[0.75,0.032],[0.9,0.03]],    // knee, calf bulge, ankle; cuff at 0.9
+  sleeve:[[0,0.043],[0.2,0.041],[0.5,0.037]],                                         // deltoid inside the short sleeve
+  upper:[[0.45,0.03],[0.7,0.029],[0.9,0.026],[1,0.025]],                               // biceps → elbow (skin)
+  fore:[[0,0.025],[0.22,0.027],[0.5,0.024],[0.8,0.019],[1,0.017]],                     // forearm swell → wrist
+  hand:[[0,0.017],[0.35,0.025],[0.7,0.026],[1,0.019]], handL:0.085,                    // mitten: wrist → curled fingertips
+  shoulderR:0.04, neckR:0.04, TH:0.2 };
+const LIGHT2=[-1,0.35,-0.25];   // key light from the home-plate side and above: the trunk's side turned away from it takes the darker tone (the back, as on the 2D pages)
 function smoothSub(ctx, pts){ // smooth() without beginPath: adds a closed subpath
   const n=pts.length, m=i=>{const a=pts[i%n],b=pts[(i+1)%n];return[(a[0]+b[0])/2,(a[1]+b[1])/2];};
   const s=m(n-1); ctx.moveTo(s[0],s[1]); for(let i=0;i<n;i++){ const p=pts[i], q=m(i); ctx.quadraticCurveTo(p[0],p[1],q[0],q[1]); } ctx.closePath(); }
 function sphere(c,r){ const o=[]; for(let i=0;i<10;i++){ const a=TAU*i/10, ca=Math.cos(a)*r, sa=Math.sin(a)*r;
   o.push([c[0]+ca,c[1]+sa,c[2]], [c[0]+ca,c[1],c[2]+sa], [c[0],c[1]+ca,c[2]+sa]); } return o; }
+// a chain of circular cross-sections from a to b: [u, r] stations, capsules between neighbours
+function tube(ctx,pj,a,b,prof,col){ let prev=null;
+  for(const [u,r] of prof){ const p=pj(lerp3(a,b,u));
+    if(prev){ taper(ctx,prev[0],p,2*prev[1]*prev[0][3],2*r*p[3],col); }
+    disc(ctx,p,r*p[3],col); prev=[p,r]; } }
 function drawFigure(ctx, Q, C, pj, ball){
   const J={}; for(const k in Q) if(Array.isArray(Q[k]) && Q[k].length===3) J[k]=pj(Q[k]);
   const toCam=[-CF[0],-CF[1],-CF[2]];
   const pf=axes(sub3(Q.rear_hip,Q.lead_hip), sub3(Q.thorax_dist,Q.pelvis));
   const tf=axes(sub3(Q.shoulder,Q.glove_shoulder), sub3(Q.thorax_prox,Q.thorax_dist));
-  const mf={lat:norm3(add3(pf.lat,tf.lat)), ap:norm3(add3(pf.ap,tf.ap))};
-  // belt line at 40 % of pelvis → lower thorax (0.57 H standing): baseball pants are belted just below the iliac crest
-  const waistC=lerp3(Q.pelvis,Q.thorax_dist,0.4), chestC=lerp3(Q.thorax_dist,Q.thorax_prox,0.45);
   const shW=len3(sub3(Q.shoulder,Q.glove_shoulder))/2;
+  // spine: quadratic through pelvis (s=0), lower thorax (s=0.5) and neck base (s=1)
+  const P0=Q.pelvis, P1=Q.thorax_dist, P2=Q.thorax_prox, Pc=sub3(add3(P1,P1),lerp3(P0,P2,0.5));
+  const spine=s=>{ const a=lerp3(P0,Pc,s), b=lerp3(Pc,P2,s); return lerp3(a,b,s); };
+  const ss=x=>{ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); };
+  const frame=s=>{ const up=norm3(sub3(spine(Math.min(1,s+0.02)),spine(Math.max(0,s-0.02)))), w=ss((s-0.15)/0.5);
+    return axes(add3(add3([0,0,0],pf.lat,1-w),tf.lat,w), up); };
+  const section=(s,hw,hd,fw=0,n=24)=>{ const f=s<0? pf : frame(s), c=s<0? add3(P0,pf.up,s*len3(sub3(P1,P0))*2) : spine(s);
+    return ring(add3(c,f.ap,fw),f.lat,f.ap,hw,hd,n); };
   // in front of the trunk: how far a point sits toward the camera from the nearest point of the pelvis → neck axis
   const ax0=Q.pelvis, ax=sub3(Q.thorax_prox,Q.pelvis), axL=dot3(ax,ax);
   const fwd=p=>{ const u=Math.max(0,Math.min(1,dot3(sub3(p,ax0),ax)/axL)); return dot3(sub3(p,add3(ax0,ax,u)),toCam); };
@@ -258,83 +278,88 @@ function drawFigure(ctx, Q, C, pj, ball){
   const back=[], front=[], under=[];
   const put=(s,d,f)=>(s>=0?front:back).push({d,f});
   const depth=(...ps)=>ps.reduce((a,p)=>a+pj(p)[2],0)/ps.length;
-  // legs: thigh, shank, shoe (heel and ball soles from the markers, toe box bends to stay above the mound)
+  // ---- trunk sections: seat, pelvis, hem, waist, lower ribs, chest, armpits, shoulders, neck base ----
+  const seat=section(-0.12,0.1,0.068,0.004), pel=section(0,0.102,0.07), hem=section(-0.03,0.105,0.08,-0.004),   // untucked hem at the hip joints, as on the 2D pages
+    
+    waist=section(0.3,0.09,0.064,0.004), ribs=section(0.5,0.093,0.068,0.006), chest=section(0.68,0.098,0.074,0.01),
+    arm=section(0.85,Math.max(0.098,shW*0.92),0.067,0.006), shl=section(0.95,shW*0.85,0.055),
+    neck=section(1.03,FIG.neckR,FIG.neckR*0.92,0,10), caps=[...sphere(Q.shoulder,FIG.shoulderR),...sphere(Q.glove_shoulder,FIG.shoulderR)];
+  const thighTops=["rear","lead"].flatMap(sd=>{ const h=Q[sd+"_hip"], k=Q[sd+"_knee"], f=axes(pf.lat,sub3(h,k));
+    return ring(lerp3(h,k,FIG.TH),f.lat,f.ap,0.052,0.052,8); });
+  const H2=pts=>hull(pts.map(pj));
+  const pants=[H2([...seat,...pel]), H2([...pel,...section(0.2,0.094,0.066),...thighTops])];
+  const shirt=[H2([...hem,...waist]), H2([...waist,...ribs]), H2([...ribs,...chest]), H2([...chest,...arm]), H2([...arm,...shl,...caps]), H2([...shl,...neck])];
+  const pathOf=hs=>{ ctx.beginPath(); for(const h of hs){ h.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); } };   // polygons: dense rings are smooth already, and unsmoothed hulls join without lumps
+  // soft shade on the side turned away from the light: the outline shifted toward the light stays light
+  const sp=pj(P1), lp=pj(add3(P1,norm3(LIGHT2),-0.1)), ld=[lp[0]-sp[0],lp[1]-sp[1]], ll=Math.hypot(ld[0],ld[1])||1;
+  const shiftL=[ld[0]/ll*0.026*sp[3], ld[1]/ll*0.026*sp[3]];
+  const fillShaded=(hs,col,colD)=>{ pathOf(hs); ctx.fillStyle=colD; ctx.fill();
+    if(col===colD) return; ctx.save(); pathOf(hs); ctx.clip(); ctx.translate(shiftL[0],shiftL[1]); pathOf(hs); ctx.fillStyle=col; ctx.fill(); ctx.restore(); };
+  // a near upper arm is the shirt's colour: where it lies over the trunk it gets a thin shaded edge (clipped to the trunk)
+  const edged=(draw)=>{ if(C!==PAL) return; ctx.save(); pathOf(shirt); ctx.clip(); draw(); ctx.restore(); };
+  // ---- legs: thigh, knee, calf, ankle (skin below the cuff), shoe ----
   const legD={}; for(const sd of ["rear","lead"]) legD[sd]=depth(Q[sd+"_knee"],lerp3(Q[sd+"_knee"],Q[sd+"_ankle"],0.5));
   for(const sd of ["rear","lead"]){
     const other=sd==="rear"?"lead":"rear", farLeg=(legD[sd]-legD[other])/0.05;   // > 0: this leg is the farther one
     const hip=Q[sd+"_hip"], kn=Q[sd+"_knee"], an=Q[sd+"_ankle"], hs=Q[sd+"_heel"], bs=Q[sd+"_ball"];
     const e=norm3(sub3(bs,hs)), lat=norm3(cross3(e,[0,0,1])), up=cross3(lat,e);
-    let tip=add3(bs,e,0.045); const fz=floorZ(tip[0])+0.001; if(tip[2]<fz) tip=[tip[0],tip[1],fz];
-    const shoe=[], soleP=[], band=[], ST=0.007;
-    for(const [p,h] of [[add3(hs,e,-0.012),0.042],[bs,0.03],[tip,0.016]]) for(const s of [-1,1]){
-      const b=add3(p,lat,0.028*s); soleP.push(pj(b)); band.push(pj(b),pj(add3(b,up,ST))); shoe.push(pj(add3(b,up,ST)), pj(add3(b,up,h))); }
-    const soleUp=-dot3(up,toCam)>0.05;   // the underside of the shoe faces the camera
-    const sT=fwd(lerp3(hip,kn,0.5)), isBack=sT<0||farLeg>0.5,
-      tL=Math.max(-sT/0.04,(farLeg-0.5)*2),   // one shade for the whole leg: 0 in front, rising behind the trunk or the other leg
-      [w0,w1]=FIG.thighW, wAt=u=>w0+(w1-w0)*u;
-    const lower=()=>{ const col=mixC(C.pant,C.pantD,tL);
+    let tip=add3(bs,e,0.05); const fz=floorZ(tip[0])+0.001; if(tip[2]<fz) tip=[tip[0],tip[1],fz];
+    // shoe like the 2D one: a low toe box rising to the collar at the ankle, on a sole strip
+    const shoe=[], band=[], ST=0.008;
+    for(const [p,h,w] of [[add3(hs,e,-0.014),0.045,0.026],[lerp3(hs,bs,0.45),0.05,0.03],[bs,0.03,0.031],[lerp3(bs,tip,0.6),0.022,0.026],[tip,0.012,0.016]])
+      for(const s of [-1,1]){ const b=add3(p,lat,w*s); band.push(pj(b),pj(add3(b,up,ST))); shoe.push(pj(add3(b,up,ST)),pj(add3(b,up,h))); }
+    const soleUp=-dot3(up,toCam)>0.05;
+    const sT=fwd(lerp3(hip,kn,0.5)), isBack=sT<0||farLeg>0.5, tL=Math.max(-sT/0.04,(farLeg-0.5)*2);   // one shade per leg
+    const pc=mixC(C.pant,C.pantD,tL), sc=mixC(C.skin,C.skinD,tL), shc=mixC(C.shoe,C.shoeD,tL);
+    const cuff=lerp3(kn,an,0.9);
+    const lower=()=>{ tube(ctx,pj,cuff,add3(an,up,0.01),[[0,0.021],[1,0.02]],sc);   // a sliver of ankle under the cuff
       if(!soleUp){ smooth(ctx,hull(band)); ctx.fillStyle=C.sole; ctx.fill(); }
-      smooth(ctx,hull(shoe)); ctx.fillStyle=mixC(C.shoe,C.shoeD,tL); ctx.fill();
-      if(soleUp){ smooth(ctx,hull([...soleP,...band])); ctx.fillStyle=C.sole; ctx.fill(); }
-      limb(ctx,J[sd+"_knee"],pj(an),FIG.shankW[0],FIG.shankW[1],col); };
+      smooth(ctx,hull(shoe)); ctx.fillStyle=shc; ctx.fill();
+      if(soleUp){ smooth(ctx,hull(band)); ctx.fillStyle=C.sole; ctx.fill(); }
+      tube(ctx,pj,kn,an,FIG.shank,pc); };
     if(isBack)   // behind the trunk, or the farther leg: the whole leg before the pants, which cover the top of the thigh
-      back.push({d:depth(hip,kn,an), f:()=>{ lower(); limb(ctx,pj(lerp3(hip,kn,0.15)),J[sd+"_knee"],wAt(0.15),w1,mixC(C.pant,C.pantD,tL)); }});
-    else {     // in front: the top of the thigh under the shirt hem, the rest sorted with the arms
-      const col=mixC(C.pant,C.pantD,tL);
-      under.push({d:depth(hip,kn), f:()=>limb(ctx,pj(lerp3(hip,kn,0.15)),pj(lerp3(hip,kn,0.55)),wAt(0.15),wAt(0.55),col)});
-      front.push({d:depth(kn,an,lerp3(hip,kn,0.7)), f:()=>{ lower(); limb(ctx,pj(lerp3(hip,kn,0.45)),J[sd+"_knee"],wAt(0.45),w1,col); }});
+      back.push({d:depth(hip,kn,an), f:()=>{ lower(); tube(ctx,pj,hip,kn,FIG.thigh.filter(([u])=>u>=0.25),pc); }});
+    else {       // in front: the top of the thigh under the shirt hem, the rest sorted with the arms
+      under.push({d:depth(hip,kn), f:()=>tube(ctx,pj,hip,kn,FIG.thigh.filter(([u])=>u>=0.25&&u<=0.55),pc)});
+      front.push({d:depth(kn,an,lerp3(hip,kn,0.7)), f:()=>{ lower(); tube(ctx,pj,hip,kn,FIG.thigh.filter(([u])=>u>=0.55),pc); }});
     }
   }
-  // trunk hulls: pants (waist, hip ring, thigh tops); shirt = abdomen hull (waist → lower ribs) joined to a
-  // thorax hull (lower ribs, chest, upper chest, neck base, shoulder caps), so the ribcage is wider than the waist and the
-  // trapezius slopes from the neck to the shoulders; the twist between the pelvis and thorax rings is the measured
-  // hip–shoulder separation
-  const thighTops=["rear","lead"].flatMap(sd=>{ const h=Q[sd+"_hip"], k=Q[sd+"_knee"], f=axes(pf.lat,sub3(h,k));
-    return ring(lerp3(h,k,FIG.TH),f.lat,f.ap,0.048,0.048,8); });
-  const pants=hull([...ring(waistC,mf.lat,mf.ap,0.088,0.064), ...ring(add3(Q.pelvis,pf.up,-0.02),pf.lat,pf.ap,0.105,0.072), ...thighTops].map(pj));
-  const neckBase=add3(Q.thorax_prox,tf.up,0.012), ribs=Q.thorax_dist;
-  const abdomen=hull([...ring(waistC,mf.lat,mf.ap,0.092,0.067), ...ring(lerp3(Q.thorax_dist,chestC,0.5),tf.lat,tf.ap,0.092,0.068)].map(pj));
-  const thorax=hull([...ring(ribs,tf.lat,tf.ap,0.096,0.07), ...ring(chestC,tf.lat,tf.ap,0.104,0.076),
-    ...ring(lerp3(chestC,Q.thorax_prox,0.6),tf.lat,tf.ap,Math.max(0.1,shW*0.92),0.068),
-    ...ring(neckBase,tf.lat,tf.ap,FIG.neckR,FIG.neckR*0.9,10), ...sphere(Q.shoulder,FIG.shoulderR), ...sphere(Q.glove_shoulder,FIG.shoulderR)].map(pj));
-  const shirtPath=()=>{ ctx.beginPath(); for(const h of [abdomen,thorax]) smoothSub(ctx,h); };
-  // a near upper arm is the shirt's colour: where it lies over the trunk it gets a thin shaded edge (clipped to the trunk)
-  const edged=(draw)=>{ if(C!==PAL) return; ctx.save(); shirtPath(); ctx.clip(); draw(); ctx.restore(); };
-  // arms: upper arm with a deltoid cap (wide at the shoulder, narrowing to the sleeve hem at the elbow), forearm, hand;
-  // the glove on the glove hand, the ball in the throwing hand until release
+  // ---- arms: short sleeve over the deltoid, bare upper arm, elbow, forearm, wrist, mitten hand; glove; ball ----
   for(const sd of ["","glove_"]){
     const S3=Q[sd+"shoulder"], E3=Q[sd+"elbow"], W3=Q[sd+"wrist"], H3=Q[sd+"hand"];
-    const sh=J[sd+"shoulder"], el=J[sd+"elbow"], wr=J[sd+"wrist"], hd=J[sd+"hand"];
     const sU=fwd(lerp3(S3,E3,0.6)), sF=fwd(lerp3(E3,W3,0.5));
+    const hdir=norm3(sub3(H3,W3)), tipH=add3(W3,hdir,FIG.handL);
     const held=!sd && ball && !ball.free ? pj(ball.pos) : null;   // drawn over the fingers in every view, outlined so it reads as held
     const drawBallHeld=()=>{ const b=held; disc(ctx,b,0.02*b[3],C.ball); if(C===PAL){ ctx.lineWidth=0.0035*b[3]; ctx.strokeStyle="rgba(31,34,51,.3)"; ctx.stroke(); }
       seg(ctx,[[b[0]-0.01*b[3],b[1]+0.008*b[3]],[b[0]+0.01*b[3],b[1]-0.008*b[3]]],0.003*b[3],C.seam,"round"); };
-    const dm=pj(lerp3(S3,E3,0.35));
-    put(sU, depth(S3,E3), ()=>{ const col=shade(C.shirt,C.shirtD,sU), k=0.009;
-      if(sU>=0) edged(()=>{ limb(ctx,sh,dm,FIG.delt[0]+k,FIG.delt[1]+k,C.shirtD); limb(ctx,dm,el,FIG.delt[1]+k,FIG.delt[2]+k,C.shirtD); });
-      limb(ctx,sh,dm,FIG.delt[0],FIG.delt[1],col); limb(ctx,dm,el,FIG.delt[1],FIG.delt[2],col); });
+    put(sU, depth(S3,E3), ()=>{ const col=shade(C.shirt,C.shirtD,sU), sk=shade(C.skin,C.skinD,sU), k=0.0045;
+      tube(ctx,pj,S3,E3,FIG.upper,sk);
+      if(sU>=0) edged(()=>tube(ctx,pj,S3,E3,FIG.sleeve.map(([u,r])=>[u,r+k]),C.shirtD));
+      tube(ctx,pj,S3,E3,FIG.sleeve,col);
+      if(C===PAL && sU>=0){ const a=lerp3(S3,E3,0.5), d=norm3(sub3(E3,S3)), n=norm3(cross3(d,toCam)), r=0.034;   // sleeve hem seam
+        seg(ctx,[pj(add3(a,n,r)),pj(add3(a,n,-r))],0.004*pj(a)[3],C.shirtDD,"round"); } });
     put(sF, depth(E3,W3), ()=>{ const sk=shade(C.skin,C.skinD,sF);
-      limb(ctx,el,wr,FIG.foreW[0],FIG.foreW[1],sk); disc(ctx,hd,FIG.handR*hd[3],sk);
+      tube(ctx,pj,E3,W3,FIG.fore,sk); tube(ctx,pj,W3,tipH,FIG.hand,sk);
       if(held) drawBallHeld();
-      if(sd){ const gp=pj(add3(H3, norm3(sub3(H3,W3)), 0.02));
-        disc(ctx,gp,0.05*gp[3],shade(C.glove,C.gloveD,sF)); disc(ctx,gp,0.022*gp[3],C.gloveD); } });
+      if(sd){ const gp=pj(add3(H3,hdir,0.02));
+        disc(ctx,gp,0.052*gp[3],shade(C.glove,C.gloveD,sF)); disc(ctx,gp,0.022*gp[3],C.gloveD); } });
   }
-  // neck under the shirt's collar ring, head sorted with the front pieces
+  // neck under the shirt's collar, head sorted with the front pieces
   { const hu=Q.head_up, hfr=Q.head_front, hc=add3(Q.head,hu,HEAD.drop), hp=pj(hc);
-    under.push({d:0, f:()=>limb(ctx,pj(add3(Q.thorax_prox,tf.up,-0.01)),pj(add3(hc,hu,-0.04)),0.072,0.066,C.skin)});   // the collar covers its base
+    under.push({d:0, f:()=>tube(ctx,pj,add3(Q.thorax_prox,tf.up,-0.01),add3(hc,hu,-0.035),[[0,0.037],[1,0.033]],C.skin)});
     front.push({d:hp[2], f:()=>drawHead(ctx,hc,hfr,hu,HEAD.r,pj,C)}); }
-  const frontness=dot3(tf.ap,toCam);
   back.sort((a,b)=>b.d-a.d); front.sort((a,b)=>b.d-a.d);
   for(const p of back) p.f();
-  smooth(ctx,pants); ctx.fillStyle=C.pant; ctx.fill();
+  fillShaded(pants,C.pant,C.pant);   // pants unshaded, as the 2D pelvis block
   for(const p of under) p.f();
-  shirtPath(); ctx.fillStyle=C.shirt; ctx.fill("nonzero");
-  if(frontness>0.1){ const a=pj(add3(add3(Q.thorax_prox,tf.up,-0.05),tf.ap,0.06)), b=pj(add3(lerp3(waistC,chestC,0.12),mf.ap,0.068));
-    ctx.globalAlpha=Math.min(1,(frontness-0.1)*3); seg(ctx,[a,b],0.006*a[3],C.shirtDD,"round"); ctx.globalAlpha=1; }
-  if(C===PAL){ const cr=[], a0=Math.atan2(dot3(toCam,tf.ap),dot3(toCam,tf.lat));   // the half of the neckline facing the camera
-    for(let i=0;i<=12;i++){ const a=a0-1.75+3.5*i/12, dd=add3(add3([0,0,0],tf.lat,Math.cos(a)),tf.ap,Math.sin(a));
-      cr.push(pj(add3(neckBase,[dd[0]*FIG.neckR,dd[1]*FIG.neckR,dd[2]*FIG.neckR]))); }
-    seg(ctx,cr,0.004*cr[0][3],C.shirtD,"round"); }
+  fillShaded(shirt,C.shirt,C.shirtD);
+  if(C===PAL){   // neckline seam on the half of the collar facing the camera; a placket line when the chest faces it
+    const f=frame(1), nb=spine(1.02), cr=[], a0=Math.atan2(dot3(toCam,f.ap),dot3(toCam,f.lat));
+    for(let i=0;i<=12;i++){ const a=a0-1.6+3.2*i/12; cr.push(pj(add3(add3(nb,f.lat,FIG.neckR*Math.cos(a)),f.ap,FIG.neckR*0.92*Math.sin(a)))); }
+    seg(ctx,cr,0.004*cr[0][3],C.shirtDD,"round");
+    const fr=dot3(frame(0.7).ap,toCam);
+    if(fr>0.1){ const a=pj(add3(spine(0.9),frame(0.9).ap,0.068)), b=pj(add3(spine(0.55),frame(0.55).ap,0.07));
+      ctx.globalAlpha=Math.min(1,(fr-0.1)*3); seg(ctx,[a,b],0.005*a[3],C.shirtDD,"round"); ctx.globalAlpha=1; } }
   for(const p of front) p.f();
 }
 // head: skin sphere, hair over the back–top hemisphere, eyes / nose / mouth / ear placed on the sphere and drawn when
