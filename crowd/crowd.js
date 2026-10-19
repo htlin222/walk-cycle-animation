@@ -45,6 +45,10 @@ function kin(f,t,a,p){
   return {f, legs, tiltD, lean:a2r, a1, P0, P1, C, thr:a*cur("throt",f)*D2R, head:amp("head",f,a)*D2R, arms, breath};
 }
 // rigid targets + this walker's spring state; step=true advances the springs by h seconds
+// Body proportions (ANSUR II men; README "Proportions"). Leg length L = hip joint → ankle joint (thigh + shank = 1, ≈0.83 m).
+// trunk: scales the torso landmarks along the spine (C7 at 0.744 L above the hip joint); neck: C7 → tragion rise (0.13 L = 108 mm);
+// head: scales the drawn head (vertex–menton 0.28 L = 232 mm, head length 0.24 L).
+const BODY={trunk:0.94, neck:0.13, head:1.05};
 function compose(R, step, h, W){
   const SPR=W.spr;
   const mix=(kx,ky)=>(s,t)=>[t[0]+(s[0]-t[0])*kx, t[1]+(s[1]-t[1])*(ky??kx)];
@@ -58,7 +62,7 @@ function compose(R, step, h, W){
   const B0=R.P0, B1=add(R.P0,U(R.a1),0.24), B3=add(C,U(a2),0.08), B2=add(C,U(a2),-0.18);
   const bz=s=>{ const m=1-s; return [m*m*m*B0[0]+3*m*m*s*B1[0]+3*m*s*s*B2[0]+s*s*s*B3[0], m*m*m*B0[1]+3*m*m*s*B1[1]+3*m*s*s*B2[1]+s*s*s*B3[1]]; };
   const bt=s=>{ const m=1-s; const x=3*m*m*(B1[0]-B0[0])+6*m*s*(B2[0]-B1[0])+3*s*s*(B3[0]-B2[0]), y=3*m*m*(B1[1]-B0[1])+6*m*s*(B2[1]-B1[1])+3*s*s*(B3[1]-B2[1]), l=Math.hypot(x,y)||1; return [x/l,y/l]; };
-  const T=(r,u)=>{ const s=Math.min(1,Math.max(0,u/0.66)), tg=bt(s); let p=bz(s); if(u>0.66) p=add(p,tg,u-0.66);
+  const T=(r,u)=>{ u*=BODY.trunk; const s=Math.min(1,Math.max(0,u/0.66)), tg=bt(s); let p=bz(s); if(u>0.66) p=add(p,tg,u-0.66);
     const n=[tg[1],-tg[0]], th=(1+(wsc-1)*ss(s*1.6))*(1+(r>0?0.12:0.05)*Math.abs(tw));
     return add(p,n,r*th); };
   let shD=[0,0];
@@ -66,7 +70,7 @@ function compose(R, step, h, W){
     const ua0=step? SPR.ua[i].step([A.ua],h)[0] : SPR.ua[i].get([A.ua])[0];
     const fl0=step? SPR.fl[i].step([A.fl],h)[0] : SPR.fl[i].get([A.fl])[0];
     const ua=A.ua+(ua0-A.ua)*0.6*EX, fl=A.fl+(fl0-A.fl)*0.8*EX, fa=ua+fl;
-    const base=add(T(-0.04 + side*0.14*tw, 0.61),[0,0.004*R.breath]);
+    const base=add(T(-0.04 + side*0.14*tw, 0.62),[0,0.004*R.breath]);
     const pro=A.shx*(1+EX), ele=A.shy*(1+EX);
     const tgt=add(add(base,FW(a2),pro),U(a2),ele);
     const sp=step? SPR.sh[i].step(tgt,h) : SPR.sh[i].get(tgt);
@@ -76,16 +80,16 @@ function compose(R, step, h, W){
   const thA=R.legs.map(L=>Math.atan2(L.knee[0]-L.hip[0], L.hip[1]-L.knee[1]));
   const pushF=0.07*Math.max(0,Math.sin(Math.max(...thA)))*(0.5+EX), pushB=0.045*Math.max(0,-Math.sin(Math.min(...thA)))*(0.5+EX);
   const neck=T(-0.11,0.76);
-  const CVA=60*D2R, earR=[neck[0]+0.17/Math.tan(CVA), neck[1]+0.17];
-  const headR=[earR[0]+0.035, earR[1]+0.005];
+  const CVA=60*D2R, earR=[neck[0]+BODY.neck/Math.tan(CVA), neck[1]+BODY.neck];
+  const headR=[earR[0]+0.035*BODY.head, earR[1]+0.005*BODY.head];
   const hs = step? SPR.head.step(headR,h) : SPR.head.get(headR);
   let head = mix(0.05*EX, 0.15*EX)(hs,headR);
   const nod = Math.max(-0.02,Math.min(0.02,-(head[1]-headR[1])*3));
   const headAng=-R.head + nod*EX;
-  { const down=Math.max(0,-headAng), piv=[head[0]-0.01+0.11*Math.sin(down*0.55), head[1]-0.09-0.03*(1-Math.cos(down*0.55))];
-    head=[piv[0]+0.01*Math.cos(headAng)-0.09*Math.sin(headAng), piv[1]+0.01*Math.sin(headAng)+0.09*Math.cos(headAng)]; }
-  const piv=add(head,[ -0.13*Math.sin(headAng), 0.13*Math.cos(headAng)]);
-  const tipR=add(piv, [0.1*Math.cos(headAng)-0.14*Math.sin(headAng), 0.1*Math.sin(headAng)+0.14*Math.cos(headAng)]);
+  { const down=Math.max(0,-headAng), hk=BODY.head, piv=[head[0]-0.01*hk+0.11*Math.sin(down*0.55), head[1]-0.09*hk-0.03*(1-Math.cos(down*0.55))];
+    head=[piv[0]+(0.01*Math.cos(headAng)-0.09*Math.sin(headAng))*hk, piv[1]+(0.01*Math.sin(headAng)+0.09*Math.cos(headAng))*hk]; }
+  const piv=add(head,[ -0.125*BODY.head*Math.sin(headAng), 0.125*BODY.head*Math.cos(headAng)]);   // quiff root
+  const tipR=add(piv, [(0.1*Math.cos(headAng)-0.04*Math.sin(headAng))*BODY.head, (0.1*Math.sin(headAng)+0.04*Math.cos(headAng))*BODY.head]);
   const tp = step? SPR.hair.step(tipR,h) : SPR.hair.get(tipR);
   const v1=sub(tipR,piv), v2=sub(tp,piv);
   const hair=Math.max(-0.3,Math.min(0.3,(Math.atan2(v2[1],v2[0])-Math.atan2(v1[1],v1[0]))*(0.7+0.7*EX)));
@@ -139,9 +143,10 @@ function drawArm(ctx, A, P, C, far){
   const skin=far?C.skinD:C.skin, top=C.jacket?(far?C.jkD:C.jk):(far?C.shirtD:C.shirt), limb=(C.ls||C.jacket)?top:skin;
   disc(ctx,A.sh,0.07,limb); taper(ctx,A.sh,A.el,0.14,0.1,limb); disc(ctx,A.el,0.049,limb); taper(ctx,A.el,A.wr,0.1,0.072,limb);
   const fd=[Math.sin(A.fa),-Math.cos(A.fa)];
-  disc(ctx,[A.wr[0]+fd[0]*0.055,A.wr[1]+fd[1]*0.055],0.06,skin);
-  if(!far){ const k=[A.wr[0]+fd[0]*0.03-Math.cos(A.fa)*0.02, A.wr[1]+fd[1]*0.03-Math.sin(A.fa)*0.02];
-    seg(ctx,[k,[k[0]+fd[0]*0.025,k[1]+fd[1]*0.025]],0.008,C.skinDD,"round"); }
+  { const hcx=[A.wr[0]+fd[0]*0.068,A.wr[1]+fd[1]*0.068];   // relaxed hand along the forearm: wrist → fingertip 0.138 L (ANSUR hand length 0.23 L, fingers half-curled)
+    ctx.beginPath(); ctx.ellipse(hcx[0],hcx[1],0.07,0.054,A.fa-Math.PI/2,0,Math.PI*2); ctx.fillStyle=skin; ctx.fill(); }
+  if(!far){ const k=[A.wr[0]+fd[0]*0.035-Math.cos(A.fa)*0.025, A.wr[1]+fd[1]*0.035-Math.sin(A.fa)*0.025];
+    seg(ctx,[k,[k[0]+fd[0]*0.04,k[1]+fd[1]*0.04]],0.008,C.skinDD,"round"); }
   const ax=[Math.sin(A.ua),-Math.cos(A.ua)], n=[Math.cos(A.ua),Math.sin(A.ua)];
   const S=A.sh, p=(u,v)=>[S[0]+ax[0]*u+n[0]*v, S[1]+ax[1]*u+n[1]*v];
   smooth(ctx,[p(-0.07,0.035),p(-0.02,0.09),p(0.18,0.085),p(0.185,-0.078),p(0.02,-0.095),p(-0.08,-0.055)]);
@@ -175,12 +180,12 @@ function drawFigure(ctx, Q, C){
   const hm=Q.hem, sd=Q.shD, w=u=>ss((u-0.4)/0.2)*(1-ss((u-0.64)/0.08));
   const P=(r,u)=>{ const p=T(r,u), k=w(u), kb=k*Math.max(0,Math.min(1,-r/0.12))*0.6; return [p[0]+sd[0]*kb, p[1]+sd[1]*kb*0.5]; };
   const bu=u=>u<0.62?b:lerpN(b,1,Math.min(1,(u-0.62)/0.1));
-  const front=[[0.0,0.145+Q.pushF],[0.1,0.142+Q.pushF*0.35],[0.25,0.14],[0.42,0.146],[0.53,0.144],[0.62,0.122],[0.67,0.092]];
+  const front=[[0.0,0.145+Q.pushF],[0.1,0.142+Q.pushF*0.35],[0.25,0.14],[0.42,0.146],[0.53,0.144],[0.6,0.124],[0.645,0.095]];
   const back=[[0.756,-0.118],[0.72,-0.142],[0.66,-0.158],[0.56,-0.165],[0.42,-0.16],[0.3,-0.148],[0.18,-0.142],[0.06,-0.155],[0.0,-0.165-Q.pushB]];
   const body=[];
   body.push(P((-0.165-0.4*Math.abs(hm)-Q.pushB)*b, hm*1.5));
   for(const [u,rr] of front) body.push(P(rr*bu(u), u + (u<0.05? hm*0.7+Q.pushF*0.5 : 0)));
-  body.push(P(0.075,0.69)); body.push(P(-0.02,0.732));
+  body.push(P(0.075,0.66)); body.push(P(-0.02,0.718));
   for(const [u,rr] of back) body.push(P(rr*bu(u), u + (u<0.05? hm*1.2 : 0)));
   smooth(ctx,body); ctx.fillStyle=C.shirt; ctx.fill();
   ctx.save(); smooth(ctx,body); ctx.clip();
@@ -197,16 +202,16 @@ function drawFigure(ctx, Q, C){
   if(C.bag){ smooth(ctx,[P(-0.13*b,0.24),P(-0.31*b,0.25),P(-0.33*b,0.42),P(-0.31*b,0.6),P(-0.13*b,0.63)]); ctx.fillStyle=C.bagc; ctx.fill();
     seg(ctx,[P(-0.3*b,0.4),P(-0.15*b,0.4)],0.012,C.bagD,"round");
     seg(ctx,[P(-0.1,0.7),P(0.05,0.62),P(0.1*b,0.38)],0.022,C.bagD,"round"); }
-  { const ha=Q.headAng, Hd=Q.head, hp=(x,y)=>[Hd[0]+x*Math.cos(ha)-y*Math.sin(ha), Hd[1]+x*Math.sin(ha)+y*Math.cos(ha)];
-    smooth(ctx,[P(-0.125,0.76),P(-0.07,0.775),P(0.02,0.735),P(-0.03,0.725)]); ctx.fillStyle=C.shirtDD; ctx.fill();
-    const nb=P(-0.115,0.752), nf=P(0.07,0.692), tb=hp(-0.075,-0.045), tf=hp(0.035,-0.105);
-    smooth(ctx,[nb,lerp(nb,tb,0.5),tb,hp(-0.005,-0.1),tf,lerp(tf,nf,0.5),nf,P(-0.01,0.72)]); ctx.fillStyle=C.skin; ctx.fill();
+  { const ha=Q.headAng, Hd=Q.head, hk=BODY.head, hp=(x,y)=>[Hd[0]+(x*Math.cos(ha)-y*Math.sin(ha))*hk, Hd[1]+(x*Math.sin(ha)+y*Math.cos(ha))*hk];
+    smooth(ctx,[P(-0.125,0.76),P(-0.07,0.775),P(0.02,0.712),P(-0.03,0.705)]); ctx.fillStyle=C.shirtDD; ctx.fill();
+    const nb=P(-0.115,0.752), nf=P(0.07,0.662), tb=hp(-0.062,-0.045), tf=hp(0.035,-0.105);
+    smooth(ctx,[nb,lerp(nb,tb,0.5),tb,hp(-0.005,-0.1),tf,lerp(tf,nf,0.5),nf,P(-0.01,0.7)]); ctx.fillStyle=C.skin; ctx.fill();
     smooth(ctx,[hp(-0.015,-0.098),hp(0.035,-0.108),hp(0.02,-0.122),hp(-0.01,-0.118)]); ctx.fillStyle=C.skinD; ctx.fill();
-    const c0=P(-0.125,0.76), cm=P(-0.02,0.738), c1=P(0.078,0.69);
+    const c0=P(-0.125,0.76), cm=P(-0.02,0.722), c1=P(0.078,0.66);
     ctx.beginPath(); ctx.moveTo(c0[0],c0[1]); ctx.quadraticCurveTo(cm[0],cm[1],c1[0],c1[1]);
     ctx.lineWidth=0.026; ctx.strokeStyle=C.jacket?C.jk:C.shirt; ctx.lineCap="round"; ctx.stroke();
     ctx.lineWidth=0.007; ctx.strokeStyle=C.jacket?C.jkD:C.shirtDD; ctx.stroke();
-    if(C.necklace){ ctx.beginPath(); const a=P(-0.06,0.735), m=P(0.03,0.64), e=P(0.085,0.69); ctx.moveTo(a[0],a[1]); ctx.quadraticCurveTo(m[0],m[1],e[0],e[1]);
+    if(C.necklace){ ctx.beginPath(); const a=P(-0.06,0.72), m=P(0.03,0.615), e=P(0.085,0.66); ctx.moveTo(a[0],a[1]); ctx.quadraticCurveTo(m[0],m[1],e[0],e[1]);
       ctx.lineWidth=0.008; ctx.strokeStyle=C.gold; ctx.stroke(); }
   }
   drawHead(ctx,Q,C);
@@ -214,9 +219,9 @@ function drawFigure(ctx, Q, C){
 }
 // hair styles:
 // 0 quiff · 1 crop · 2 long · 3 ponytail · 4 bun · 5 cap · 6 shaved · 7 afro · 8 locs · 9 bob · 10 headscarf · 11 curly long · 12 spikes · 13 braid
-const CAP=[[0.11,0.06],[0.09,0.13],[0.0,0.16],[-0.1,0.13],[-0.128,0.05],[-0.105,0.0],[-0.07,0.02],[-0.05,0.055],[0.04,0.07]];
+const CAP=[[0.11,0.06],[0.09,0.135],[0,0.168],[-0.1,0.135],[-0.128,0.05],[-0.105,0],[-0.07,0.02],[-0.05,0.055],[0.04,0.07]];   // ≈2 cm of volume over the crown
 function drawHead(ctx,Q,C){
-  ctx.save(); ctx.translate(Q.head[0],Q.head[1]); ctx.rotate(Q.headAng);
+  ctx.save(); ctx.translate(Q.head[0],Q.head[1]); ctx.rotate(Q.headAng); ctx.scale(BODY.head,BODY.head);
   const hs=C.hs, sw=Q.hair;
   ctx.fillStyle=C.hair;
   // hair that sits behind the head
@@ -256,7 +261,7 @@ function drawHead(ctx,Q,C){
   else if(hs===7){ smooth(ctx,[[0.1,0.06],[0.1,0.16],[-0.02,0.22],[-0.12,0.15],[-0.13,0.04],[-0.07,0.0],[-0.05,0.05],[0.04,0.06]]); ctx.fill(); }
   else if(hs===9){ smooth(ctx,[[0.115,0.065],[0.095,0.145],[0.0,0.175],[-0.115,0.14],[-0.155,0.02],[-0.15,-0.11],[-0.07,-0.115],[-0.055,-0.02],[-0.02,0.045],[0.06,0.08]]); ctx.fill(); }
   else if(hs===12){ smooth(ctx,CAP.map(([x,y])=>[x*0.97,y*0.97])); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-0.1,0.12); for(let i=0;i<5;i++){ const x=-0.09+i*0.045; ctx.lineTo(x+0.03+sw*0.05,0.24-0.015*i); ctx.lineTo(x+0.045,0.15); } ctx.lineTo(0.1,0.1); ctx.closePath(); ctx.fill(); }
+    ctx.beginPath(); ctx.moveTo(-0.1,0.12); for(let i=0;i<5;i++){ const x=-0.09+i*0.045; ctx.lineTo(x+0.03+sw*0.05,0.215-0.012*i); ctx.lineTo(x+0.045,0.15); } ctx.lineTo(0.1,0.1); ctx.closePath(); ctx.fill(); }
   else {
     if(hs===2){ ctx.save(); ctx.translate(-0.06,0.1); ctx.rotate(sw*0.5);
       smooth(ctx,[[0.0,0.05],[-0.09,0.02],[-0.105,-0.12],[-0.09,-0.25],[-0.03,-0.26],[-0.01,-0.12],[0.03,-0.05]]); ctx.fill(); ctx.restore(); }
@@ -265,8 +270,8 @@ function drawHead(ctx,Q,C){
       ctx.restore(); ctx.fillStyle=C.hair; }
     smooth(ctx, (hs===1||hs===8||hs===11||hs===13)? CAP.map(([x,y])=>[x*0.98,y*0.98]) : CAP); ctx.fill();
     if(hs===11){ for(const [x,y] of [[0.08,0.11],[0.02,0.16],[-0.06,0.155],[-0.12,0.1]]) disc(ctx,[x,y],0.04,C.hair); }
-    if(hs===0){ ctx.save(); ctx.translate(0.0,0.13); ctx.rotate(sw);
-      smooth(ctx,[[-0.08,0.0],[-0.02,0.11],[0.09,0.16],[0.15,0.1],[0.13,0.03],[0.07,-0.02]]); ctx.fill(); ctx.restore(); }
+    if(hs===0){ ctx.save(); ctx.translate(0.0,0.125); ctx.rotate(sw);   // short quiff, ≈4 cm over the skull
+      smooth(ctx,[[-0.07,0],[-0.02,0.04],[0.05,0.065],[0.115,0.055],[0.13,0.02],[0.11,-0.025],[0.06,-0.04]]); ctx.fill(); ctx.restore(); }
     if(hs===2){ smooth(ctx,[[0.115,0.06],[0.1,0.14],[0.0,0.172],[-0.1,0.14],[-0.13,0.05],[0.0,0.09]]); ctx.fill(); }
     if(hs===3){ ctx.save(); ctx.translate(-0.115,0.09); ctx.rotate(sw*1.6);
       smooth(ctx,[[0.0,0.03],[-0.08,0.01],[-0.11,-0.08],[-0.08,-0.17],[-0.05,-0.08],[0.0,-0.02]]); ctx.fill(); ctx.restore();

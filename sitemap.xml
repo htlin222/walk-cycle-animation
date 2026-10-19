@@ -3,7 +3,7 @@
   <url>
     <loc>https://htlin222.github.io/walk-cycle-animation/</loc>
     <lastmod>2026-10-19</lastmod>
-    <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/run-og.png</image:loc></image:image>
+    <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/home-og.png</image:loc></image:image>
   </url>
   <url>
     <loc>https://htlin222.github.io/walk-cycle-animation/walk/</loc>
@@ -15,5 +15,30 @@
     <loc>https://htlin222.github.io/walk-cycle-animation/run/</loc>
     <lastmod>2026-10-16</lastmod>
     <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/run-og.png</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://htlin222.github.io/walk-cycle-animation/stand/</loc>
+    <lastmod>2026-10-18</lastmod>
+    <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/stand-og.png</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://htlin222.github.io/walk-cycle-animation/stairs/</loc>
+    <lastmod>2026-10-17</lastmod>
+    <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/stairs-og.png</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://htlin222.github.io/walk-cycle-animation/jump/</loc>
+    <lastmod>2026-10-18</lastmod>
+    <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/jump-og.png</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://htlin222.github.io/walk-cycle-animation/dance/</loc>
+    <lastmod>2026-10-17</lastmod>
+    <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/dance-og.png</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://htlin222.github.io/walk-cycle-animation/pitch/</loc>
+    <lastmod>2026-10-18</lastmod>
+    <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/pitch-og.png</image:loc></image:image>
   </url>
 </urlset>

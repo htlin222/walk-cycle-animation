@@ -2,7 +2,7 @@
 
 Download ANSUR_II_MALE_Public.csv from https://www.openlab.psu.edu/ansur2/ and pass its path.
 Prints each dimension in mm and as a fraction of stature; the page converts these to leg-length units
-(leg = hip joint → ankle ≈ 0.458 H).
+(leg L = hip joint → ankle = trochanterion − lateral malleolus ≈ 828 mm ≈ 0.47 H; see proportions.py).
 """
 import csv, json, statistics as st, sys, pathlib
 rows = list(csv.DictReader(open(sys.argv[1], encoding='latin-1')))
