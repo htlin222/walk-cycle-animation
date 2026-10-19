@@ -2,7 +2,7 @@
 
 A packed crowd of 140 people walking together, rendered to a clean 16:9 video (1920×1080, 30 fps, 20 s, no UI).
 
-Every walker uses the page's neutral gait (`index.html`, GAIT-BEGIN…GAIT-END) and the same no-slip simulation, running on its own spring state and its own clock.
+Every walker uses the page's neutral gait (`walk/index.html`, GAIT-BEGIN…GAIT-END) and the same no-slip simulation, running on its own spring state and its own clock.
 
 ## What differs between walkers
 

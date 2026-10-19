@@ -2,7 +2,12 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://htlin222.github.io/walk-cycle-animation/</loc>
-    <lastmod>2026-10-15</lastmod>
+    <lastmod>2026-10-19</lastmod>
+    <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/home-og.png</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://htlin222.github.io/walk-cycle-animation/walk/</loc>
+    <lastmod>2026-10-19</lastmod>
     <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/og-image.png</image:loc></image:image>
     <image:image><image:loc>https://htlin222.github.io/walk-cycle-animation/assets/screenshot.png</image:loc></image:image>
   </url>

@@ -2,11 +2,11 @@
 
 **An evidence-based procedural walk cycle in a single HTML file.** Clinical gait data drives the legs with zero foot slip, real motion capture drives the upper body, and a large anthropometric survey sets the body proportions. Switch between happy, neutral and sad walking styles measured from the same actors, start from a standstill, and watch a point-light shadow change with distance.
 
-**Live demo:** https://htlin222.github.io/walk-cycle-animation/
+**Live demo:** https://htlin222.github.io/walk-cycle-animation/ is the home page with every motion. The walk itself is at https://htlin222.github.io/walk-cycle-animation/walk/.
 
 ![Animated walk cycle, happy style](assets/walk-cycle.gif)
 
-[![Full page screenshot](assets/screenshot.png)](https://htlin222.github.io/walk-cycle-animation/)
+[![Full page screenshot](assets/screenshot.png)](https://htlin222.github.io/walk-cycle-animation/walk/)
 
 ▶ **Video:** [`assets/walk-cycle-9-clips.mp4`](assets/walk-cycle-9-clips.mp4): 9 parameter combinations × 3 s, 1440×1080, 30 fps.
 
@@ -425,7 +425,7 @@ Controls: play / pause (space), ◀ ▶ previous / next event (arrow keys), play
 
 ## Run it
 
-Open `index.html` (walk), `run/index.html` (run), `stand/index.html` (stand), `stairs/index.html` (stairs and ramps), `jump/index.html` (jump), `dance/index.html` (dance) or `pitch/index.html` (pitch) in a browser. There is no build step and no dependencies; it is plain Canvas 2D.
+Open `index.html` (home page, links to every motion), `walk/index.html` (walk), `run/index.html` (run), `stand/index.html` (stand), `stairs/index.html` (stairs and ramps), `jump/index.html` (jump), `dance/index.html` (dance) or `pitch/index.html` (pitch) in a browser. There is no build step and no dependencies; it is plain Canvas 2D.
 
 Controls: speed, style (平常 neutral / 開心 happy / 低落 sad), camera (固定鏡頭 fixed / 跟隨 follow), exaggeration (secondary motion only), 重新起步 restart from standing, 顯示骨架 skeleton overlay with ankle path and pelvic-height curve.
 
@@ -435,7 +435,7 @@ Controls: speed, style (平常 neutral / 開心 happy / 低落 sad), camera (固
 analysis/
   bvh.py              BVH parser + forward kinematics
   analyze.py          sagittal projection, heel-strike detection, cycle averaging (CMU clips → data/cmu_sagittal_curves.json)
-  extract_styles.py   phase alignment + smoothing → data/styles.json (embedded in index.html)
+  extract_styles.py   phase alignment + smoothing → data/styles.json (embedded in walk/index.html)
   ansur_stats.py      ANSUR II means → data/ansur2_male_means.json
   render_video.py     deterministic frame-stepped capture (Playwright) + ffmpeg → assets/walk-cycle-9-clips.mp4
   render_walk.py      → assets/walk-cycle.gif, assets/og-image.png, assets/screenshot.png

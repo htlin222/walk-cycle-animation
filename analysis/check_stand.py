@@ -114,9 +114,11 @@ with sync_playwright() as p:
     stand_errs = list(errs)
     # walk page, current file and the committed version
     walk = {}
-    head = subprocess.run(['git', '-C', str(ROOT), 'show', 'HEAD:index.html'], capture_output=True, text=True)
+    head = subprocess.run(['git', '-C', str(ROOT), 'show', 'HEAD:walk/index.html'], capture_output=True, text=True)
+    if head.returncode != 0:   # before the walk page moved to walk/
+        head = subprocess.run(['git', '-C', str(ROOT), 'show', 'HEAD:index.html'], capture_output=True, text=True)
     with tempfile.TemporaryDirectory() as td:
-        srcs = {'current': ROOT / 'index.html'}
+        srcs = {'current': ROOT / 'walk' / 'index.html'}
         if head.returncode == 0: (pathlib.Path(td) / 'index.html').write_text(head.stdout); srcs['HEAD'] = pathlib.Path(td) / 'index.html'
         for k, path in srcs.items():
             errs.clear(); pg.goto(path.as_uri()); pg.wait_for_timeout(300)

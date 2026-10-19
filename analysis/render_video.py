@@ -3,7 +3,7 @@ import json
 import os, pathlib, subprocess
 ROOT=pathlib.Path(__file__).resolve().parent.parent
 OUT=ROOT/'build'/'frames'; OUT.mkdir(parents=True, exist_ok=True)
-page_url=(ROOT/'index.html').as_uri()
+page_url=(ROOT/'walk'/'index.html').as_uri()
 SEG=[  # style, camera, speed, exaggeration, start-from-standing, skeleton, label
  ("neutral","fixed",1.0,0.5,False,False,"平常 · 固定鏡頭 · 1×"),
  ("happy",  "fixed",1.0,0.5,False,False,"開心 · 固定鏡頭 · 1×"),

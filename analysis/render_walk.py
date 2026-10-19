@@ -1,4 +1,4 @@
-"""Render the README / social images of index.html (walk): assets/walk-cycle.gif, assets/og-image.png, assets/screenshot.png.
+"""Render the README / social images of walk/index.html: assets/walk-cycle.gif, assets/og-image.png, assets/screenshot.png.
 
 Usage: python render_walk.py      (Playwright Chromium + ffmpeg on PATH; CHROMIUM=/path/to/chrome to use a local build)
 Frame-stepped and deterministic: the page's clock is driven from here, not by requestAnimationFrame.
@@ -21,11 +21,11 @@ with sync_playwright() as p:
     errs = []
     for (w, h, dpr, st, out) in [(1200, 630, 1, 'happy', 'og-image.png'), (1440, 900, 2, 'neutral', 'screenshot.png')]:
         pg = b.new_page(viewport={'width': w, 'height': h}, device_scale_factor=dpr); pg.on('pageerror', lambda e: errs.append(str(e)))
-        pg.goto((ROOT / 'index.html').as_uri()); pg.wait_for_timeout(800)
+        pg.goto((ROOT / 'walk' / 'index.html').as_uri()); pg.wait_for_timeout(800)
         pg.evaluate(CAM, 'fixed'); pg.evaluate(SETUP, st); pg.evaluate(CENTRE, 0.5); pg.evaluate(RAF)
         pg.screenshot(path=str(ROOT / 'assets' / out)); pg.close()
     pg = b.new_page(viewport={'width': 720, 'height': 480}); pg.on('pageerror', lambda e: errs.append(str(e)))
-    pg.goto((ROOT / 'index.html').as_uri()); pg.wait_for_timeout(800)
+    pg.goto((ROOT / 'walk' / 'index.html').as_uri()); pg.wait_for_timeout(800)
     # small frame: the title and the walker only (the nav and controls would cover the legs at 720x480)
     pg.evaluate("(()=>{ document.querySelector('header p.nav').style.display='none'; document.querySelector('.rail').style.display='none'; resize(); })()")
     pg.evaluate(CAM, 'follow'); pg.evaluate(SETUP, 'happy')

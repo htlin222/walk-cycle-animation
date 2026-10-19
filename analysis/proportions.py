@@ -1,8 +1,8 @@
 """Proportion audit of the 2D side-view rig against ANSUR II men (README "Proportions").
 
-Usage: python proportions.py [page.html]                    table for one page (default ../index.html)
+Usage: python proportions.py [page.html]                    table for one page (default ../walk/index.html)
        python proportions.py --md before.html after.html   Markdown before/after table
-       (git show <rev>:index.html > /tmp/before.html gives an older version)
+       (git show <rev>:walk/index.html > /tmp/before.html gives an older version)
 
 The neutral standing pose (no sway, rest arms) is measured from the page's own pose and drawing code in headless Chromium:
 landmarks from the geometry, the hair top and torso depths from the rendered pixels.
@@ -100,5 +100,5 @@ if __name__ == '__main__':
             if ref is None: print(f'| {n} | | {d0:.0f} | {d1:.0f} | {src} |'); continue
             print(f'| {n} | {ref:.{q}f} | {d0:.{q}f} ({d0 - ref:+.{q}f}) | {d1:.{q}f} ({d1 - ref:+.{q}f}) | {src} |')
     else:
-        for n, d, ref, s in table(measure(sys.argv[1] if len(sys.argv) > 1 else ROOT / 'index.html')):
+        for n, d, ref, s in table(measure(sys.argv[1] if len(sys.argv) > 1 else ROOT / 'walk' / 'index.html')):
             print(f'{n:40s} {d:8.1f} ' + (f'{ref:8.1f} {d - ref:+7.1f}' if ref is not None else ' ' * 17) + f'  {s}')
